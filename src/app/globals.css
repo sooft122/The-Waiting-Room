@@ -1,0 +1,317 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-bg: #0c0d10;
+  --color-card-from: #16171c;
+  --color-card-to: #101114;
+  --color-border: rgba(41, 41, 41, 0.42);
+  --color-border-highlight: rgba(64, 64, 64, 0.5);
+  --color-muted: rgba(255, 255, 255, 0.6);
+  --color-subtle: #b8b8b8;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  background: var(--color-bg);
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer utilities {
+  .font-satoshi {
+    font-family: "Satoshi", var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  }
+  .font-satoshi-italic {
+    font-family: "Satoshi", var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+    font-style: italic;
+  }
+  .font-figtree {
+    font-family: var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
+  }
+  .font-inter {
+    font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .animate-dropdown-in {
+    animation: dropdown-in 160ms ease-out both;
+  }
+
+  .animate-hero-in {
+    animation: hero-in 800ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+}
+
+@keyframes dropdown-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes hero-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+/* Hover hierarchy: hovering one nav row dims its siblings so the hovered
+   item reads as the focal point instead of everything staying equal weight. */
+.nav-hierarchy:hover > a {
+  opacity: 0.42;
+}
+.nav-hierarchy > a:hover {
+  opacity: 1;
+  transform: translateX(2px);
+}
+
+/* Room card edge glow: a thin bright arc continuously travels around the
+   card's border on hover, like light catching the edge of a piece of glass,
+   layered on top of a soft steady edge (glass reflects a little from every
+   angle, but glints brightest where light directly grazes it). */
+@property --room-card-glow-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+.room-card-glow {
+  position: relative;
+}
+
+.room-card-glow::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: conic-gradient(
+    from var(--room-card-glow-angle),
+    transparent 0deg,
+    transparent 268deg,
+    rgba(255, 255, 255, 0.95) 300deg,
+    rgba(255, 255, 255, 1) 315deg,
+    rgba(255, 255, 255, 0.95) 330deg,
+    transparent 360deg
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 300ms ease;
+}
+
+.room-card-glow:hover::after {
+  opacity: 1;
+  animation: room-card-glow-spin 2.6s linear infinite;
+}
+
+@keyframes room-card-glow-spin {
+  to {
+    --room-card-glow-angle: 360deg;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .room-card-glow:hover::after {
+    animation: none;
+    opacity: 0.7;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-dropdown-in,
+  .animate-hero-in {
+    animation-duration: 1ms;
+    animation-delay: 0ms !important;
+  }
+}
+
+/* Room Energy bar: a tiny cluster of bubbles hovering at the fill's leading
+   edge, each drifting on its own slow loop so the tip reads as "alive"
+   rather than a static bar. */
+.energy-bubble-a {
+  width: 4px;
+  height: 4px;
+  left: -9px;
+  top: -11px;
+  animation: energy-float-a 2.6s ease-in-out infinite;
+}
+.energy-bubble-b {
+  width: 2px;
+  height: 2px;
+  left: -15px;
+  top: 5px;
+  animation: energy-float-b 2.1s ease-in-out infinite;
+  animation-delay: 0.35s;
+}
+.energy-bubble-c {
+  width: 3px;
+  height: 3px;
+  left: -3px;
+  top: 8px;
+  animation: energy-float-c 3s ease-in-out infinite;
+  animation-delay: 0.8s;
+}
+
+@keyframes energy-float-a {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 0.9;
+  }
+  50% {
+    transform: translateY(-4px) scale(1.15);
+    opacity: 0.45;
+  }
+}
+@keyframes energy-float-b {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.65;
+  }
+  50% {
+    transform: translateY(3px);
+    opacity: 1;
+  }
+}
+@keyframes energy-float-c {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 0.8;
+  }
+  50% {
+    transform: translateY(-3px) scale(0.85);
+    opacity: 0.4;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .energy-bubble-a,
+  .energy-bubble-b,
+  .energy-bubble-c {
+    animation: none;
+  }
+}
+
+/* Room Mood rows: hovering (or having selected) a mood surrounds the whole
+   pill with a soft ambient halo in that mood's own two-tone color — a tight,
+   more saturated inner glow plus a larger, softer outer one — not a full
+   background tint. The row itself keeps only a faint diagonal sheen. */
+.mood-row {
+  position: relative;
+  transition: box-shadow 300ms ease;
+  background-image: linear-gradient(172deg, rgba(255, 255, 255, 0.05) 2.6%, rgba(255, 255, 255, 0) 45%);
+}
+
+.mood-row[data-mood="Hype"]:hover,
+.mood-row[data-mood="Hype"][data-selected="true"] {
+  box-shadow:
+    0 0 18px 2px rgba(212, 165, 46, 0.55),
+    0 0 46px 6px rgba(159, 199, 79, 0.4);
+}
+
+.mood-row[data-mood="Nervous"]:hover,
+.mood-row[data-mood="Nervous"][data-selected="true"] {
+  box-shadow:
+    0 0 18px 2px rgba(92, 46, 212, 0.55),
+    0 0 46px 6px rgba(158, 79, 199, 0.4);
+}
+
+.mood-row[data-mood="Tired"]:hover,
+.mood-row[data-mood="Tired"][data-selected="true"] {
+  box-shadow:
+    0 0 18px 2px rgba(212, 46, 46, 0.55),
+    0 0 46px 6px rgba(255, 179, 179, 0.4);
+}
+
+.mood-row[data-mood="Curious"]:hover,
+.mood-row[data-mood="Curious"][data-selected="true"] {
+  box-shadow:
+    0 0 18px 2px rgba(46, 82, 212, 0.55),
+    0 0 46px 6px rgba(179, 249, 255, 0.4);
+}
+
+.mood-row[data-mood="Just Here"]:hover,
+.mood-row[data-mood="Just Here"][data-selected="true"] {
+  box-shadow:
+    0 0 18px 2px rgba(229, 229, 229, 0.4),
+    0 0 46px 6px rgba(143, 143, 143, 0.32);
+}
+
+.mood-row:disabled:hover {
+  box-shadow: none;
+}
+
+/* Lobby swarm: each dot drifts along its own small, slow orbit. Per-dot
+   offsets/timing come from CSS custom properties set inline (deterministic,
+   not random-at-render, so server and client markup always match). */
+.lobby-dot {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: lobby-dot-drift var(--drift-duration, 20s) ease-in-out infinite;
+  animation-delay: var(--drift-delay, 0s);
+}
+
+@keyframes lobby-dot-drift {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  25% {
+    transform: translate(var(--dx, 3px), var(--dy, -2px));
+  }
+  50% {
+    transform: translate(calc(var(--dx, 3px) * -0.6), calc(var(--dy, -2px) * 1.4));
+  }
+  75% {
+    transform: translate(calc(var(--dx, 3px) * -1), calc(var(--dy, -2px) * -0.5));
+  }
+}
+
+.lobby-dot-me {
+  animation: lobby-dot-glow 1.8s ease-in-out infinite;
+}
+
+@keyframes lobby-dot-glow {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lobby-dot,
+  .lobby-dot-me {
+    animation: none;
+  }
+}
