@@ -13,9 +13,21 @@ export default function NavBar({ isMenuOpen, onToggleMenu, onNavigate, anonId }:
   return (
     <div className="fixed inset-x-0 top-0 z-30 mx-auto w-full max-w-[1214px] px-5 pt-6 sm:px-8 sm:pt-8 lg:px-0 lg:pt-[33px]">
       <div className="flex items-center justify-between">
-        <Link href="/" aria-label="The Waiting Room home" className="relative size-[30px] shrink-0">
+        {/* Same coated-badge treatment as the menu button — the logo mark's
+            own negative space (the gaps within its silhouette) would
+            otherwise let whatever's behind the nav show through it. */}
+        <Link
+          href="/"
+          aria-label="The Waiting Room home"
+          className="relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-[8px] border border-border"
+          style={{ backgroundImage: "linear-gradient(180deg, #16171c, #101114)" }}
+        >
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img alt="" className="block size-full" src="/icons/logo.svg" />
+          <img alt="" className="block h-[20px] w-auto" src="/icons/logo.svg" />
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-[-1px] rounded-[inherit] shadow-[inset_0px_1px_1px_0px_#404040]"
+          />
         </Link>
 
         <div className="flex shrink-0 items-center gap-2.5">
