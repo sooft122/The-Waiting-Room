@@ -36,6 +36,21 @@ async function compressViaImageBitmap(file: File): Promise<string> {
   }
 }
 
+// Last resort — some formats a phone gallery hands out (HEIC/HEIF chief
+// among them) simply aren't decodable via <img>/canvas in most mobile
+// browsers, even though the file itself is perfectly valid. Reading it as
+// raw bytes never needs to decode pixels at all, so it always works; it
+// just skips the size reduction, matching how this app read every upload
+// before compression was added.
+function readRawDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error("Could not read that file."));
+    reader.readAsDataURL(file);
+  });
+}
+
 // Fallback for browsers without createImageBitmap's resize option — decodes
 // at full resolution via a plain <img>, then draws scaled onto the canvas.
 function compressViaImageElement(file: File): Promise<string> {
@@ -81,11 +96,14 @@ export async function compressImageToDataUrl(file: File): Promise<string> {
   try {
     return await compressViaImageElement(file);
   } catch (err) {
-    console.error("compressImageToDataUrl: <img> fallback path also failed", {
+    console.error("compressImageToDataUrl: <img> fallback path also failed, reading raw bytes instead", {
       fileType: file.type,
       fileSize: file.size,
       err,
     });
-    throw err instanceof Error ? err : new Error(String(err));
   }
+
+  // Neither decode path could handle this file's format — fall back to
+  // storing it uncompressed rather than blocking the upload outright.
+  return readRawDataUrl(file);
 }

@@ -35,7 +35,7 @@ export default function TrendingCarousel({ rooms }: TrendingCarouselProps) {
   }
 
   return (
-    <div className="relative h-[280px] w-full overflow-hidden rounded-[20px] bg-black sm:h-[360px] lg:h-[429px]">
+    <div className="relative h-[440px] w-full overflow-hidden rounded-[20px] bg-black sm:h-[360px] lg:h-[429px]">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img alt="" src={room.imageUrl} className="absolute inset-0 size-full object-cover" />
       <div
@@ -46,21 +46,19 @@ export default function TrendingCarousel({ rooms }: TrendingCarouselProps) {
         }}
       />
 
-      <div className="absolute inset-x-5 bottom-8 flex items-end justify-between gap-4 sm:inset-x-[50px] sm:bottom-[50px]">
+      <div className="absolute inset-x-5 bottom-8 flex flex-col items-start gap-3 sm:inset-x-[50px] sm:bottom-[50px] sm:flex-row sm:items-end sm:justify-between sm:gap-4">
         <div className="flex min-w-0 flex-col gap-1 font-satoshi text-white">
           <p className="text-[14px]">🔥 Trending</p>
-          <p className="max-w-[50vw] truncate text-[20px] sm:text-[26px]">{room.name}</p>
+          <p className="max-w-full truncate text-[20px] sm:max-w-[50vw] sm:text-[26px]">{room.name}</p>
           <p className="text-[15px] opacity-65 sm:text-[18px]">
             {room.participantCount.toLocaleString()} {hasEnded ? "waited" : "waiting"}
           </p>
         </div>
 
         {hasEnded ? (
-          <p className="hidden shrink-0 font-satoshi text-[14px] text-white opacity-65 sm:block">
-            Wait Ended
-          </p>
+          <p className="shrink-0 font-satoshi text-[14px] text-white opacity-65">Wait Ended</p>
         ) : (
-          <div className="hidden shrink-0 flex-col items-start gap-[17px] text-white sm:flex">
+          <div className="flex shrink-0 flex-col items-start gap-[17px] text-white">
             <CountdownRow countdown={countdown} />
             <JoinRoomButton
               roomId={room.id}
@@ -92,11 +90,15 @@ export default function TrendingCarousel({ rooms }: TrendingCarouselProps) {
 
       {rooms.length > 1 ? (
         <>
+          {/* Below sm, the content stacks (taller) instead of sitting in a
+              row beside itself, so the arrows sit higher up — fixed to the
+              top of the box — instead of vertically centered across the
+              whole (now taller) card, to stay clear of it. */}
           <button
             type="button"
             onClick={() => goTo(index - 1)}
             aria-label="Previous room"
-            className="absolute left-3 top-1/2 flex size-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 backdrop-blur transition-colors hover:bg-black/60"
+            className="absolute left-3 top-16 flex size-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 backdrop-blur transition-colors hover:bg-black/60 sm:top-1/2"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img alt="" className="size-5 rotate-180" src="/icons/arrow-right-01.svg" />
@@ -105,7 +107,7 @@ export default function TrendingCarousel({ rooms }: TrendingCarouselProps) {
             type="button"
             onClick={() => goTo(index + 1)}
             aria-label="Next room"
-            className="absolute right-3 top-1/2 flex size-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 backdrop-blur transition-colors hover:bg-black/60"
+            className="absolute right-3 top-16 flex size-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 backdrop-blur transition-colors hover:bg-black/60 sm:top-1/2"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img alt="" className="size-5" src="/icons/arrow-right-01.svg" />
