@@ -53,7 +53,8 @@ export default function CreateRoomModal({ onClose, onCreated }: CreateRoomModalP
     setErrors((prev) => ({ ...prev, image: undefined }));
     try {
       setImagePreview(await compressImageToDataUrl(file));
-    } catch {
+    } catch (err) {
+      console.error("CreateRoomModal: compressImageToDataUrl failed", err);
       setErrors((prev) => ({ ...prev, image: "Could not process that image. Please try another." }));
     }
   }

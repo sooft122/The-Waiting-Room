@@ -65,7 +65,8 @@ export default function ProfileAvatar({
     setError(null);
     try {
       onChange?.(await compressImageToDataUrl(file));
-    } catch {
+    } catch (err) {
+      console.error("ProfileAvatar: compressImageToDataUrl failed", err);
       setError("Could not process that image. Please try another.");
     }
   }

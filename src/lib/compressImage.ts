@@ -30,12 +30,24 @@ export function compressImageToDataUrl(file: File): Promise<string> {
         return;
       }
 
-      ctx.drawImage(img, 0, 0, width, height);
-      resolve(canvas.toDataURL("image/jpeg", JPEG_QUALITY));
+      try {
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", JPEG_QUALITY));
+      } catch (err) {
+        console.error("compressImageToDataUrl: canvas draw/export failed", {
+          fileType: file.type,
+          fileSize: file.size,
+          width,
+          height,
+          err,
+        });
+        reject(err instanceof Error ? err : new Error("Could not process that image."));
+      }
     };
 
-    img.onerror = () => {
+    img.onerror = (event) => {
       URL.revokeObjectURL(objectUrl);
+      console.error("compressImageToDataUrl: image failed to decode", { fileType: file.type, fileSize: file.size, event });
       reject(new Error("Could not read that image."));
     };
 

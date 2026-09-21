@@ -46,7 +46,8 @@ export default function EditRoomModal({ room, onClose, onSaved }: EditRoomModalP
     setErrors((prev) => ({ ...prev, image: undefined }));
     try {
       setImagePreview(await compressImageToDataUrl(file));
-    } catch {
+    } catch (err) {
+      console.error("EditRoomModal: compressImageToDataUrl failed", err);
       setErrors((prev) => ({ ...prev, image: "Could not process that image. Please try another." }));
     }
   }
@@ -271,11 +272,11 @@ export default function EditRoomModal({ room, onClose, onSaved }: EditRoomModalP
           <p className="w-full font-inter text-[12px] text-red-400">{errors.form}</p>
         ) : null}
 
-        <div className="flex w-full items-stretch gap-[4px]">
+        <div className="flex w-full flex-col items-stretch gap-2 sm:flex-row sm:gap-[4px]">
           <button
             type="button"
             onClick={() => setConfirmingDelete(true)}
-            className="relative flex w-[152px] shrink-0 flex-col items-center justify-center overflow-hidden rounded-[10px] bg-[#ff8282] p-px shadow-[0px_1px_4px_0px_rgba(0,0,0,0.2)]"
+            className="relative flex w-full flex-col items-center justify-center overflow-hidden rounded-[10px] bg-[#ff8282] p-px shadow-[0px_1px_4px_0px_rgba(0,0,0,0.2)] sm:w-[152px] sm:shrink-0"
           >
             <span className="relative flex w-full items-center justify-center overflow-hidden rounded-[9px] px-[30px] py-2">
               <span
