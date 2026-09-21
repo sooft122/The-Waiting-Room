@@ -42,15 +42,23 @@ export default function LobbyCard({
   // Re-roll which dot is "you" and what color it glows whenever you become
   // checked-in — on mount (e.g. reloading mid-cooldown) and after every
   // fresh "I'm Still Here" click.
+  //
+  // isGlowing has to be a dependency here, not just localLastSeenAt: when a
+  // check-in lands, setLocalLastSeenAt fires this render with the new
+  // timestamp, but useCooldown's own state (and therefore isGlowing) hasn't
+  // updated yet — it updates its state in ITS OWN effect, which runs AFTER
+  // this one on the same commit, so isGlowing is still stale here. Only on
+  // the FOLLOWING render does isGlowing flip true, but by then
+  // localLastSeenAt is unchanged, so without isGlowing in the deps this
+  // effect never re-runs and myDotIndex is never rolled — the glow only
+  // ever appeared after a full reload, where isGlowing is already correct
+  // on the very first render.
   useEffect(() => {
     if (!isGlowing) return;
     const dotCount = getDotCount(participantCount);
     setMyDotIndex(Math.floor(Math.random() * dotCount));
     setMyGlowColor(GLOW_COLORS[Math.floor(Math.random() * GLOW_COLORS.length)]);
-    // Only re-roll when a check-in actually happens (localLastSeenAt
-    // changes) or the swarm size changes — not on every render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [localLastSeenAt, participantCount]);
+  }, [isGlowing, localLastSeenAt, participantCount]);
 
   async function handleCheckIn() {
     if (cooldown.active) return;
