@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Figtree } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import AuthProvider from "@/components/providers/AuthProvider";
 import ProfileProvider from "@/components/providers/ProfileProvider";
 import RoomModalProvider from "@/components/rooms/RoomModalProvider";
@@ -62,6 +63,7 @@ export default function RootLayout({
             <RoomModalProvider>{children}</RoomModalProvider>
           </ProfileProvider>
         </AuthProvider>
+        <Analytics />
       </body>
     </html>
   );
