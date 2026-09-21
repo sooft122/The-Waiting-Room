@@ -17,9 +17,24 @@ const figtree = Figtree({
   display: "swap",
 });
 
+const SITE_DESCRIPTION =
+  "Something worth waiting for. Join people around the world waiting for the same moment.";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXTAUTH_URL ?? "http://localhost:3000"),
   title: "The Waiting Room",
-  description: "Something worth waiting for. Join people around the world waiting for the same moment.",
+  description: SITE_DESCRIPTION,
+  openGraph: {
+    title: "The Waiting Room",
+    description: SITE_DESCRIPTION,
+    siteName: "The Waiting Room",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "The Waiting Room",
+    description: SITE_DESCRIPTION,
+  },
 };
 
 export const viewport: Viewport = {

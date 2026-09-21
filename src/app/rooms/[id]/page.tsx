@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { headers } from "next/headers";
 import { getServerSession } from "next-auth/next";
+import type { Metadata } from "next";
 import { authOptions } from "@/lib/auth";
 import { getJoinedAt, getRoom, getRoomAnalytics, hasJoinedRoom } from "@/lib/rooms";
 import { getMoodBreakdown, getViewerMood } from "@/lib/roomMood";
@@ -9,6 +10,36 @@ import { getLastSeen } from "@/lib/roomPresence";
 import RoomDetailScreen from "@/components/rooms/RoomDetailScreen";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: { id: string };
+}): Promise<Metadata> {
+  const room = await getRoom(params.id);
+  if (!room) return {};
+
+  const title = `${room.name} — The Waiting Room`;
+  const description = `${room.participantCount.toLocaleString()} people waiting. Join the wait for ${room.name}.`;
+  // The room's own thumbnail doubles as the link's social preview.
+  const imageUrl = `/api/og/room/${room.id}`;
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      images: [{ url: imageUrl, width: 1200, height: 630 }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [imageUrl],
+    },
+  };
+}
 
 export default async function RoomPage({ params }: { params: { id: string } }) {
   const room = await getRoom(params.id);

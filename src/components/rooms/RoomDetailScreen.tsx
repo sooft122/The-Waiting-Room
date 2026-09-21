@@ -115,9 +115,7 @@ export default function RoomDetailScreen({
         {/* Large Media Frame — capped to a portion of the viewport height
             (not a full-bleed aspect ratio) so it never dominates the whole
             screen regardless of image shape or window size. */}
-        <div
-          className={`relative w-full overflow-hidden bg-black ${hasEnded ? "h-[80vh]" : "h-[75vh]"}`}
-        >
+        <div className="relative h-[90vh] w-full overflow-hidden bg-black">
           {/* Image fills the entire hero edge-to-edge (object-cover, full bleed).
               Only the CONTENT below (text, buttons, energy bar) is aligned to
               the nav's own width — the photo itself is never inset. */}
@@ -211,12 +209,15 @@ export default function RoomDetailScreen({
                       <img alt="" className="size-[18px]" src="/icons/share-01.svg" />
                     </button>
                   </div>
+                </div>
 
-                  {/* Left-aligned with the rest of the hero content, not
-                      floated in the opposite corner. */}
-                  <div className={energyBarEntrance.className} style={energyBarEntrance.style}>
-                    <RoomEnergyBar energy={roomEnergy} />
-                  </div>
+                {/* Right-aligned, but anchored to the same bottom offset as
+                    the left content stack so the two sit on one horizontal line. */}
+                <div
+                  className={`absolute bottom-4 right-0 hidden sm:bottom-9 sm:block lg:bottom-[100px] ${energyBarEntrance.className}`}
+                  style={energyBarEntrance.style}
+                >
+                  <RoomEnergyBar energy={roomEnergy} />
                 </div>
               </div>
             </div>
