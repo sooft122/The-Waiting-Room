@@ -3,18 +3,16 @@ import type { CSSProperties } from "react";
 // A simplified stand-in for the Figma design's ~150 hand-placed decorative
 // dots: a deterministic golden-angle spiral (not Math.random — that would
 // mismatch between server and client render) inside a few concentric rings.
-// Dot count scales gently with participantCount (never 1:1 — a room with a
-// million waiting shouldn't render a million dots, just "a lot" of them),
-// and each dot drifts slowly along its own small loop via CSS.
+// One dot per participant, capped at MAX_DOTS — a room with 3,000 people
+// waiting still only ever renders 500 dots, not 3,000.
 const GOLDEN_ANGLE_DEG = 137.50776;
 const VIEWBOX = 260;
 const CENTER = VIEWBOX / 2;
-const MIN_DOTS = 8;
-const MAX_DOTS = 60;
+const MAX_DOTS = 500;
 
 /** Same formula used by LobbyCard to pick a valid random "me" dot index. */
 export function getDotCount(participantCount: number): number {
-  return Math.min(MAX_DOTS, Math.max(MIN_DOTS, Math.round(Math.sqrt(Math.max(participantCount, 0)) * 6)));
+  return Math.min(MAX_DOTS, Math.max(0, participantCount));
 }
 
 function round2(value: number): number {
@@ -58,7 +56,7 @@ function buildDots(count: number) {
     // loop, quick enough to notice while staying gentle rather than jittery.
     const dx = round2(2 + pseudoRandom(i * 7 + 1) * 5);
     const dy = round2(2 + pseudoRandom(i * 7 + 2) * 5);
-    const duration = round2(14 + pseudoRandom(i * 7 + 3) * 18);
+    const duration = round2(7 + pseudoRandom(i * 7 + 3) * 9);
     const delay = round2(pseudoRandom(i * 7 + 4) * 10);
 
     // A much quicker, independent breathing cycle — dims toward a fraction
