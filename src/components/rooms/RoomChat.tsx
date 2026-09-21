@@ -17,9 +17,13 @@ type RoomChatProps = {
   hasJoined: boolean;
 };
 
-const POLL_INTERVAL_MS = 2000;
+const OPEN_POLL_INTERVAL_MS = 2000;
+// Slower while closed — still fast enough that the unread dot shows up
+// promptly, without polling a chat nobody's currently looking at as often.
+const CLOSED_POLL_INTERVAL_MS = 6000;
 const AUTO_CLOSE_DELAY_MS = 7000;
 const MAX_MESSAGE_LENGTH = 300;
+const SEEN_STORAGE_KEY_PREFIX = "waiting-room:chat-last-seen:";
 
 // Shared transition so the icon and panel feel like one fluid piece — the
 // panel grows from the same bottom-right corner the icon sits in (matching
@@ -34,9 +38,38 @@ export default function RoomChat({ roomId, hasJoined }: RoomChatProps) {
   const [error, setError] = useState<string | null>(null);
   const [cooldownUntil, setCooldownUntil] = useState<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
+  // The id of the newest message the viewer has actually had the panel open
+  // for — null until read from localStorage (after mount, to avoid an SSR
+  // hydration mismatch), so the badge stays hidden rather than flashing on
+  // for a first render's worth of "unknown".
+  const [lastSeenMessageId, setLastSeenMessageId] = useState<string | null>(null);
+  const [lastSeenHydrated, setLastSeenHydrated] = useState(false);
 
   const closeTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const listRef = useRef<HTMLDivElement>(null);
+  const seenStorageKey = `${SEEN_STORAGE_KEY_PREFIX}${roomId}`;
+
+  useEffect(() => {
+    try {
+      setLastSeenMessageId(window.localStorage.getItem(seenStorageKey));
+    } catch {
+      // Storage unavailable (private browsing, quota) — badge just won't persist across reloads.
+    } finally {
+      setLastSeenHydrated(true);
+    }
+  }, [seenStorageKey]);
+
+  const markSeen = useCallback(
+    (messageId: string) => {
+      setLastSeenMessageId(messageId);
+      try {
+        window.localStorage.setItem(seenStorageKey, messageId);
+      } catch {
+        // Non-fatal — the dot may reappear next visit, nothing breaks.
+      }
+    },
+    [seenStorageKey],
+  );
 
   const clearCloseTimer = useCallback(() => {
     if (closeTimerRef.current) {
@@ -62,10 +95,10 @@ export default function RoomChat({ roomId, hasJoined }: RoomChatProps) {
 
   useEffect(() => clearCloseTimer, [clearCloseTimer]);
 
-  // Poll for new messages (and the viewer's own cooldown) only while the
-  // panel is actually open — no point refreshing a chat nobody's looking at.
+  // Keeps polling even while closed (just slower) so a new message can still
+  // light up the unread dot on the icon — the whole point of the dot is to
+  // surface activity you'd otherwise only learn about by opening the panel.
   useEffect(() => {
-    if (!open) return;
     let cancelled = false;
 
     async function poll() {
@@ -83,12 +116,21 @@ export default function RoomChat({ roomId, hasJoined }: RoomChatProps) {
     }
 
     poll();
-    const id = setInterval(poll, POLL_INTERVAL_MS);
+    const id = setInterval(poll, open ? OPEN_POLL_INTERVAL_MS : CLOSED_POLL_INTERVAL_MS);
     return () => {
       cancelled = true;
       clearInterval(id);
     };
   }, [open, roomId]);
+
+  // Whenever the panel is open, the newest loaded message counts as read —
+  // covers both opening on an existing backlog and new messages streaming
+  // in via polling while you're already looking at it.
+  useEffect(() => {
+    if (!open) return;
+    const latest = messages[messages.length - 1];
+    if (latest && latest.id !== lastSeenMessageId) markSeen(latest.id);
+  }, [open, messages, lastSeenMessageId, markSeen]);
 
   // Ticks the displayed "Send in Ns" countdown once a second.
   useEffect(() => {
@@ -106,6 +148,10 @@ export default function RoomChat({ roomId, hasJoined }: RoomChatProps) {
 
   const remainingSeconds = cooldownUntil ? Math.max(0, Math.ceil((cooldownUntil - now) / 1000)) : 0;
   const canSend = hasJoined && !sending && remainingSeconds <= 0 && text.trim().length > 0;
+
+  const latestMessageId = messages.length > 0 ? messages[messages.length - 1].id : null;
+  const hasUnread =
+    !open && lastSeenHydrated && latestMessageId !== null && latestMessageId !== lastSeenMessageId;
 
   async function handleSend(event: FormEvent) {
     event.preventDefault();
@@ -155,6 +201,13 @@ export default function RoomChat({ roomId, hasJoined }: RoomChatProps) {
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img alt="" className="size-6" src="/icons/message-01.svg" />
+        {hasUnread ? (
+          <span
+            aria-hidden
+            className="chat-unread-dot absolute right-[3px] top-[3px] size-[11px] rounded-full border-2 bg-red-500"
+            style={{ borderColor: "#18191b" }}
+          />
+        ) : null}
       </button>
 
       {/* Open state: message list + composer, growing out of the same

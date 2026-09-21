@@ -328,3 +328,27 @@ body {
     animation: none;
   }
 }
+
+/* Chat icon's unread badge — a gentle breathing pulse so a new message
+   catches the eye without being an alarm. */
+.chat-unread-dot {
+  animation: chat-unread-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes chat-unread-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.75;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-unread-dot {
+    animation: none;
+  }
+}
