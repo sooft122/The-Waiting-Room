@@ -248,9 +248,22 @@ body {
 .lobby-dot {
   transform-box: fill-box;
   transform-origin: center;
-  animation-name: lobby-dot-drift;
-  animation-timing-function: ease-in-out;
-  animation-iteration-count: infinite;
+  animation-name: lobby-dot-drift, lobby-dot-pulse;
+  animation-timing-function: ease-in-out, ease-in-out;
+  animation-iteration-count: infinite, infinite;
+}
+
+/* Subtle breathing so the swarm reads as alive, not static — each dot
+   dims toward its own --o-pulse (a fraction of its own resting opacity,
+   set inline per dot) and back, on its own randomized timing. */
+@keyframes lobby-dot-pulse {
+  0%,
+  100% {
+    opacity: var(--o-base, 0.5);
+  }
+  50% {
+    opacity: var(--o-pulse, 0.3);
+  }
 }
 
 @keyframes lobby-dot-drift {

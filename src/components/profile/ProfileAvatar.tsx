@@ -1,8 +1,11 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { compressImageToDataUrl } from "@/lib/compressImage";
 
-const MAX_AVATAR_BYTES = 3 * 1024 * 1024;
+// Generous — actual upload size is capped by compressImageToDataUrl
+// downscaling every image before it's stored, not by this raw-file check.
+const MAX_AVATAR_BYTES = 20 * 1024 * 1024;
 
 type ProfileAvatarProps = {
   src: string | null;
@@ -50,19 +53,21 @@ export default function ProfileAvatar({
 
   const canEdit = !anonymous && !!onChange;
 
-  function handleFile(file: File) {
+  async function handleFile(file: File) {
     if (!file.type.startsWith("image/")) {
       setError("Please choose an image file.");
       return;
     }
     if (file.size > MAX_AVATAR_BYTES) {
-      setError("Image must be under 3MB.");
+      setError("Image must be under 20MB.");
       return;
     }
     setError(null);
-    const reader = new FileReader();
-    reader.onload = () => onChange?.(reader.result as string);
-    reader.readAsDataURL(file);
+    try {
+      onChange?.(await compressImageToDataUrl(file));
+    } catch {
+      setError("Could not process that image. Please try another.");
+    }
   }
 
   return (

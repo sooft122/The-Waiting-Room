@@ -5,10 +5,13 @@ import type { DragEvent } from "react";
 import { useRouter } from "next/navigation";
 import { ROOM_CATEGORIES } from "@/lib/rooms";
 import type { Room } from "@/lib/rooms";
+import { compressImageToDataUrl } from "@/lib/compressImage";
 import ModalShell from "./ModalShell";
 import DeleteRoomModal from "./DeleteRoomModal";
 
-const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
+// Generous — actual upload size is capped by compressImageToDataUrl
+// downscaling every image before it's stored, not by this raw-file check.
+const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
 
 type FormErrors = Partial<Record<"image" | "name" | "date" | "category" | "form", string>>;
 
@@ -31,19 +34,21 @@ export default function EditRoomModal({ room, onClose, onSaved }: EditRoomModalP
   const [submitting, setSubmitting] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
-  function readImageFile(file: File) {
+  async function readImageFile(file: File) {
     if (!file.type.startsWith("image/")) {
       setErrors((prev) => ({ ...prev, image: "Please upload an image file." }));
       return;
     }
     if (file.size > MAX_IMAGE_BYTES) {
-      setErrors((prev) => ({ ...prev, image: "Image must be under 4MB." }));
+      setErrors((prev) => ({ ...prev, image: "Image must be under 20MB." }));
       return;
     }
     setErrors((prev) => ({ ...prev, image: undefined }));
-    const reader = new FileReader();
-    reader.onload = () => setImagePreview(reader.result as string);
-    reader.readAsDataURL(file);
+    try {
+      setImagePreview(await compressImageToDataUrl(file));
+    } catch {
+      setErrors((prev) => ({ ...prev, image: "Could not process that image. Please try another." }));
+    }
   }
 
   function handleFileInputChange(event: React.ChangeEvent<HTMLInputElement>) {

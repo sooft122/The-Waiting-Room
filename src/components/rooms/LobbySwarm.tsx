@@ -61,7 +61,14 @@ function buildDots(count: number) {
     const duration = round2(28 + pseudoRandom(i * 7 + 3) * 34);
     const delay = round2(pseudoRandom(i * 7 + 4) * 10);
 
-    return { x, y, size, opacity, dx, dy, duration, delay };
+    // A much quicker, independent breathing cycle — dims toward a fraction
+    // of the dot's own resting opacity and back, each on its own timing so
+    // the swarm never pulses in unison.
+    const pulseOpacity = round2(opacity * (0.4 + pseudoRandom(i * 7 + 5) * 0.25));
+    const pulseDuration = round2(2.6 + pseudoRandom(i * 7 + 6) * 3.2);
+    const pulseDelay = round2(pseudoRandom(i * 7 + 7) * 4);
+
+    return { x, y, size, opacity, dx, dy, duration, delay, pulseOpacity, pulseDuration, pulseDelay };
   });
 }
 
@@ -125,15 +132,21 @@ export default function LobbySwarm({
         // (checked in within the last hour) — otherwise it looks like any
         // other dot, so there's no permanent "this one is you" tell.
         const isMeGlowing = i === myDotIndex && isGlowing;
-        // --dx/--dy (read via var() inside the keyframe) work fine as custom
-        // properties. animationDuration/animationDelay do NOT — set as plain
-        // literal values instead (see the note in globals.css). The glowing
-        // dot pairs its own drift timing with the glow's fixed 1.8s/0s.
+        // --dx/--dy/--o-base/--o-pulse (read via var() inside the keyframes)
+        // work fine as custom properties. animationDuration/animationDelay do
+        // NOT — set as plain literal values instead (see the note in
+        // globals.css). The glowing dot pairs its own drift timing with the
+        // glow's fixed 1.8s/0s; every other dot pairs drift with its own
+        // independent breathing-pulse timing instead.
         const driftStyle: CSSProperties = {
           ["--dx" as string]: `${dot.dx}px`,
           ["--dy" as string]: `${dot.dy}px`,
-          animationDuration: isMeGlowing ? `${dot.duration}s, 1.8s` : `${dot.duration}s`,
-          animationDelay: isMeGlowing ? `${dot.delay}s, 0s` : `${dot.delay}s`,
+          ["--o-base" as string]: `${dot.opacity}`,
+          ["--o-pulse" as string]: `${dot.pulseOpacity}`,
+          animationDuration: isMeGlowing
+            ? `${dot.duration}s, 1.8s`
+            : `${dot.duration}s, ${dot.pulseDuration}s`,
+          animationDelay: isMeGlowing ? `${dot.delay}s, 0s` : `${dot.delay}s, ${dot.pulseDelay}s`,
         };
         return (
           <circle

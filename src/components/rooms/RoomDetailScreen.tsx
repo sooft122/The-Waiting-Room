@@ -209,12 +209,18 @@ export default function RoomDetailScreen({
                       <img alt="" className="size-[18px]" src="/icons/share-01.svg" />
                     </button>
                   </div>
+
+                  {/* Below sm, there's no room beside the content for a
+                      right-docked bar, so it stacks in-flow here instead. */}
+                  <div className={`sm:hidden ${energyBarEntrance.className}`} style={energyBarEntrance.style}>
+                    <RoomEnergyBar energy={roomEnergy} />
+                  </div>
                 </div>
 
-                {/* Right-aligned, but anchored to the same bottom offset as
-                    the left content stack so the two sit on one horizontal line. */}
+                {/* From sm up, right-aligned but anchored to the same bottom
+                    offset as the left content stack so both sit on one line. */}
                 <div
-                  className={`absolute bottom-4 right-0 hidden sm:bottom-9 sm:block lg:bottom-[100px] ${energyBarEntrance.className}`}
+                  className={`absolute bottom-9 right-0 hidden sm:block lg:bottom-[100px] ${energyBarEntrance.className}`}
                   style={energyBarEntrance.style}
                 >
                   <RoomEnergyBar energy={roomEnergy} />
