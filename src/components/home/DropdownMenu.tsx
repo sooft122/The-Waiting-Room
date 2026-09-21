@@ -68,7 +68,7 @@ export default function DropdownMenu({
       id="home-dropdown-menu"
       role="menu"
       aria-label="Main menu"
-      className={`animate-dropdown-in absolute z-30 w-[273px] max-w-[calc(100vw-2.5rem)] overflow-hidden rounded-[8px] border border-border ${className}`}
+      className={`animate-dropdown-in absolute z-40 w-[273px] max-w-[calc(100vw-2.5rem)] overflow-hidden rounded-[8px] border border-border ${className}`}
       style={{ backgroundImage: "linear-gradient(180deg, #16171c, #101114)" }}
     >
       <Link

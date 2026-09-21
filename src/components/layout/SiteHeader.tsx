@@ -44,7 +44,7 @@ export default function SiteHeader({ anonId }: SiteHeaderProps) {
       {isMenuOpen ? (
         <div
           aria-hidden
-          className="fixed inset-0 z-20 bg-black/40 backdrop-blur-[2px] transition-opacity"
+          className="fixed inset-0 z-[35] bg-black/40 backdrop-blur-[2px] transition-opacity"
           onClick={() => setIsMenuOpen(false)}
         />
       ) : null}
