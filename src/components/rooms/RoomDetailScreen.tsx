@@ -112,13 +112,11 @@ export default function RoomDetailScreen({
   return (
     <div className="relative min-h-screen w-full bg-bg">
       <div className="relative">
-        {/* Large Media Frame */}
+        {/* Large Media Frame — capped to a portion of the viewport height
+            (not a full-bleed aspect ratio) so it never dominates the whole
+            screen regardless of image shape or window size. */}
         <div
-          className={`relative w-full overflow-hidden bg-black ${
-            hasEnded
-              ? "aspect-[3/4] sm:aspect-[16/10] lg:aspect-[1280/860]"
-              : "aspect-[3/4] sm:aspect-[16/9] lg:aspect-[1280/752]"
-          }`}
+          className={`relative w-full overflow-hidden bg-black ${hasEnded ? "h-[80vh]" : "h-[75vh]"}`}
         >
           {/* Image fills the entire hero edge-to-edge (object-cover, full bleed).
               Only the CONTENT below (text, buttons, energy bar) is aligned to
@@ -126,11 +124,13 @@ export default function RoomDetailScreen({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img alt="" src={room.imageUrl} className="absolute inset-0 size-full object-cover" />
 
+          {/* Fades to black at both the very top (so the fixed nav stays
+              legible over any image) and the bottom (for the text/buttons). */}
           <div
             className="absolute inset-0"
             style={{
               backgroundImage:
-                "linear-gradient(to bottom, rgba(0,0,0,0) 38.473%, rgba(0,0,0,0.92) 92.271%)",
+                "linear-gradient(to bottom, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0) 16%, rgba(0,0,0,0) 38.473%, rgba(0,0,0,0.92) 92.271%)",
             }}
           />
 
@@ -211,13 +211,12 @@ export default function RoomDetailScreen({
                       <img alt="" className="size-[18px]" src="/icons/share-01.svg" />
                     </button>
                   </div>
-                </div>
 
-                <div
-                  className={`absolute bottom-9 right-0 hidden sm:block lg:bottom-[78px] ${energyBarEntrance.className}`}
-                  style={energyBarEntrance.style}
-                >
-                  <RoomEnergyBar energy={roomEnergy} />
+                  {/* Left-aligned with the rest of the hero content, not
+                      floated in the opposite corner. */}
+                  <div className={energyBarEntrance.className} style={energyBarEntrance.style}>
+                    <RoomEnergyBar energy={roomEnergy} />
+                  </div>
                 </div>
               </div>
             </div>
@@ -327,9 +326,7 @@ export default function RoomDetailScreen({
           ) : null}
         </div>
 
-        <div className="absolute inset-x-0 top-0">
-          <SiteHeader anonId={anonId} />
-        </div>
+        <SiteHeader anonId={anonId} />
       </div>
 
       {!hasEnded ? (

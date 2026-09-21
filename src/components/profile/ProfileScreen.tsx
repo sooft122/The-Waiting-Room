@@ -93,7 +93,9 @@ export default function ProfileScreen({ rooms, anonId }: ProfileScreenProps) {
     <div className="relative min-h-screen w-full bg-bg">
       <SiteHeader anonId={anonId} />
 
-      <main className="relative z-10 mx-auto flex w-full max-w-[1214px] flex-col gap-8 px-5 pb-24 pt-10 sm:px-8 lg:px-0 lg:pt-[52px]">
+      {/* pt compensates for the nav bar now being fixed (out of normal
+          flow) instead of pushing this content down itself. */}
+      <main className="relative z-10 mx-auto flex w-full max-w-[1214px] flex-col gap-8 px-5 pb-24 pt-[104px] sm:px-8 sm:pt-[112px] lg:px-0 lg:pt-[125px]">
         <h1 className="font-satoshi text-[24px] leading-[1.08] text-white">My Profile</h1>
 
         {data ? (

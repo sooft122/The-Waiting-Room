@@ -1,25 +1,46 @@
-import { getRecentPresenceCount } from "./roomPresence";
+import { getCheckinCounts } from "./roomPresence";
 import { getVoterCount } from "./roomMood";
 
+// Mood participation is a small, one-time signal — voting (or re-voting,
+// which doesn't add anything: distinct voters only counts each identity
+// once) contributes up to this many points, shrinking per-person as the
+// room grows since it's a share of participantCount.
+const MOOD_WEIGHT = 30;
+
+// Checking in is the main, repeatable lever — but capped per identity so
+// no single person can keep pushing the number up alone. After their first
+// CHECKIN_CAP check-ins, further checking in by that same person adds
+// nothing more; growth past that point requires other people to check in.
+const CHECKIN_WEIGHT = 70;
+const CHECKIN_CAP_PER_PERSON = 3;
+
 /**
- * Room Energy (0-100) blends two real engagement signals, equally weighted:
- *  - presence: share of participants who've checked in (joined, or tapped
- *    "I'm Still Here") within the last PRESENCE_WINDOW_MS
- *  - mood participation: share of participants who've cast a mood vote
- * The Figma design shows a "Room Energy" meter with no defined source for
- * its number — this formula is ours, built from data actually tracked by
- * the app rather than left random or hardcoded.
+ * Room Energy (0-100), built entirely from data this app actually tracks —
+ * the Figma design showed a meter with no defined source for its number.
+ *
+ *  - moodContribution: (distinct mood voters / participants) * MOOD_WEIGHT
+ *  - checkinContribution: (sum of each identity's check-ins, each capped at
+ *    CHECKIN_CAP_PER_PERSON) / (participants * CHECKIN_CAP_PER_PERSON) * CHECKIN_WEIGHT
  */
 export async function getRoomEnergy(roomId: string, participantCount: number): Promise<number> {
   if (participantCount <= 0) return 0;
 
-  const [presentCount, voterCount] = await Promise.all([
-    getRecentPresenceCount(roomId),
+  const [voterCount, checkinCounts] = await Promise.all([
     getVoterCount(roomId),
+    getCheckinCounts(roomId),
   ]);
 
-  const presenceRatio = Math.min(presentCount / participantCount, 1);
-  const moodRatio = Math.min(voterCount / participantCount, 1);
+  const moodContribution = Math.round(Math.min(voterCount / participantCount, 1) * MOOD_WEIGHT);
 
-  return Math.round(((presenceRatio + moodRatio) / 2) * 100);
+  const cappedCheckinSum = Object.values(checkinCounts).reduce(
+    (sum, count) => sum + Math.min(count, CHECKIN_CAP_PER_PERSON),
+    0,
+  );
+  const maxPossibleCheckinSum = participantCount * CHECKIN_CAP_PER_PERSON;
+  const checkinContribution =
+    maxPossibleCheckinSum > 0
+      ? Math.round(Math.min(cappedCheckinSum / maxPossibleCheckinSum, 1) * CHECKIN_WEIGHT)
+      : 0;
+
+  return Math.min(100, moodContribution + checkinContribution);
 }

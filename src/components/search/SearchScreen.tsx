@@ -69,7 +69,9 @@ export default function SearchScreen({
     <div className="relative flex min-h-screen w-full flex-col bg-bg">
       <SiteHeader anonId={anonId} />
 
-      <main className="relative z-10 flex flex-1 flex-col pb-40">
+      {/* pt-top clears the now-fixed nav bar, which no longer pushes this
+          content down itself since it's out of normal document flow. */}
+      <main className="relative z-10 flex flex-1 flex-col pb-40 pt-[73px]">
         {!hasSearched ? (
           <div className="flex flex-1 flex-col items-center justify-center px-6 text-center">
             <p className="max-w-[271px] font-satoshi text-[20px] text-white">
@@ -77,7 +79,7 @@ export default function SearchScreen({
             </p>
           </div>
         ) : hasResults ? (
-          <div className="mx-auto w-full max-w-[1214px] flex-1 px-5 pt-[101px] sm:px-8 lg:px-0">
+          <div className="mx-auto w-full max-w-[1214px] flex-1 px-5 pt-[28px] sm:px-8 lg:px-0">
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {results.map((room) => (
                 <RoomCard key={room.id} room={room} joined={joinedRoomIdSet.has(room.id)} />

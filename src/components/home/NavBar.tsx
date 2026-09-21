@@ -11,7 +11,7 @@ type NavBarProps = {
 
 export default function NavBar({ isMenuOpen, onToggleMenu, onNavigate, anonId }: NavBarProps) {
   return (
-    <div className="relative z-30 mx-auto w-full max-w-[1214px] px-5 pt-6 sm:px-8 sm:pt-8 lg:px-0 lg:pt-[33px]">
+    <div className="fixed inset-x-0 top-0 z-30 mx-auto w-full max-w-[1214px] px-5 pt-6 sm:px-8 sm:pt-8 lg:px-0 lg:pt-[33px]">
       <div className="flex items-center justify-between">
         <Link href="/" aria-label="The Waiting Room home" className="relative size-[30px] shrink-0">
           {/* eslint-disable-next-line @next/next/no-img-element */}
