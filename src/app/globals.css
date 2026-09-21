@@ -301,9 +301,30 @@ body {
   }
 }
 
+/* Center orbit guide rings — a slow, subtle opacity breathe. Duration/delay
+   come from inline styles per ring (see the note above on lobby-dot: var()
+   breaks animation-duration/delay in this renderer), only animation-name/
+   timing-function/iteration-count live here. */
+.lobby-ring {
+  animation-name: lobby-ring-pulse;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+@keyframes lobby-ring-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .lobby-dot,
-  .lobby-dot-me {
+  .lobby-dot-me,
+  .lobby-ring {
     animation: none;
   }
 }

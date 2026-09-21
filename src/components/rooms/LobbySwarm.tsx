@@ -54,11 +54,11 @@ function buildDots(count: number) {
     const size = round2(2.5 + pseudoRandom(i * 4 + 3) * 4);
     const opacity = round2(0.22 + pseudoRandom(i * 4) * 0.55);
 
-    // Slow, randomized drift — long, varied durations so it never reads as
-    // a mechanical loop, and stays gentle rather than jittery.
+    // Randomized drift — varied durations so it never reads as a mechanical
+    // loop, quick enough to notice while staying gentle rather than jittery.
     const dx = round2(2 + pseudoRandom(i * 7 + 1) * 5);
     const dy = round2(2 + pseudoRandom(i * 7 + 2) * 5);
-    const duration = round2(28 + pseudoRandom(i * 7 + 3) * 34);
+    const duration = round2(14 + pseudoRandom(i * 7 + 3) * 18);
     const delay = round2(pseudoRandom(i * 7 + 4) * 10);
 
     // A much quicker, independent breathing cycle — dims toward a fraction
@@ -99,13 +99,25 @@ export default function LobbySwarm({
         </filter>
       </defs>
 
-      <circle cx={CENTER} cy={CENTER} r={CENTER - 8} stroke="rgba(255,255,255,0.07)" fill="none" />
+      {/* The two orbit guide rings breathe subtly too, on their own slightly
+          offset timing so they don't pulse in perfect unison. */}
       <circle
+        className="lobby-ring"
+        cx={CENTER}
+        cy={CENTER}
+        r={CENTER - 8}
+        stroke="rgba(255,255,255,0.07)"
+        fill="none"
+        style={{ animationDuration: "5s", animationDelay: "0s" }}
+      />
+      <circle
+        className="lobby-ring"
         cx={CENTER}
         cy={CENTER}
         r={CENTER * 0.66}
         stroke="rgba(255,255,255,0.08)"
         fill="none"
+        style={{ animationDuration: "6.5s", animationDelay: "1.2s" }}
       />
 
       {/* Subtle glow halo behind the center disc. */}

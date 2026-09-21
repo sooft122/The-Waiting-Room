@@ -1,3 +1,5 @@
+import { ONE_DAY_MS } from "@/hooks/useCountdown";
+
 // Reused by RoomCard and the trending carousel. The label sits stacked
 // below its number with its own breathing room, rather than overlapping the
 // number's corner — the tighter overlap read as congested at these sizes.
@@ -15,13 +17,13 @@ export function CountdownRow({
 }: {
   countdown: { days: number; hrs: number; mins: number; secs: number; totalMs: number };
 }) {
-  // Under an hour left, "days" is always 0 and not worth showing — swap it
-  // for seconds instead, so the last stretch counts down smoothly.
-  const isLastHour = countdown.totalMs <= 60 * 60 * 1000;
+  // Under a day left, "days" is always 0 and not worth showing — swap it
+  // for seconds instead, so the final hours count down smoothly.
+  const isLastDay = countdown.totalMs < ONE_DAY_MS;
 
   return (
     <div className="flex items-start gap-2.5">
-      {isLastHour ? (
+      {isLastDay ? (
         <>
           <CountdownUnit value={countdown.hrs} label="hrs" />
           <span className="pt-0.5 text-[20px] opacity-65">:</span>
