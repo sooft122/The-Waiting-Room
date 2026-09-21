@@ -9,48 +9,83 @@
 const MAX_DIMENSION = 1600;
 const JPEG_QUALITY = 0.82;
 
-export function compressImageToDataUrl(file: File): Promise<string> {
+function canvasToJpegDataUrl(source: CanvasImageSource, width: number, height: number): string {
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("This browser can't process images (no 2D canvas context).");
+  ctx.drawImage(source, 0, 0, width, height);
+  return canvas.toDataURL("image/jpeg", JPEG_QUALITY);
+}
+
+// Decoding a full-resolution photo (modern phone cameras routinely shoot
+// 12-48MP) into memory before scaling it down — the old approach — can fail
+// on a memory-constrained mobile tab. createImageBitmap's resize option lets
+// the browser decode directly at a reduced size instead, which is both
+// cheaper and avoids ever holding the full-resolution bitmap in memory.
+async function compressViaImageBitmap(file: File): Promise<string> {
+  const bitmap = await createImageBitmap(file, {
+    resizeWidth: MAX_DIMENSION,
+    resizeQuality: "medium",
+  });
+  try {
+    return canvasToJpegDataUrl(bitmap, bitmap.width, bitmap.height);
+  } finally {
+    bitmap.close();
+  }
+}
+
+// Fallback for browsers without createImageBitmap's resize option — decodes
+// at full resolution via a plain <img>, then draws scaled onto the canvas.
+function compressViaImageElement(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const objectUrl = URL.createObjectURL(file);
     const img = new Image();
 
     img.onload = () => {
       URL.revokeObjectURL(objectUrl);
-
       const scale = Math.min(1, MAX_DIMENSION / Math.max(img.width, img.height));
       const width = Math.round(img.width * scale);
       const height = Math.round(img.height * scale);
-
-      const canvas = document.createElement("canvas");
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) {
-        reject(new Error("Your browser can't process images."));
-        return;
-      }
-
       try {
-        ctx.drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL("image/jpeg", JPEG_QUALITY));
+        resolve(canvasToJpegDataUrl(img, width, height));
       } catch (err) {
-        console.error("compressImageToDataUrl: canvas draw/export failed", {
-          fileType: file.type,
-          fileSize: file.size,
-          width,
-          height,
-          err,
-        });
-        reject(err instanceof Error ? err : new Error("Could not process that image."));
+        reject(err);
       }
     };
 
-    img.onerror = (event) => {
+    img.onerror = () => {
       URL.revokeObjectURL(objectUrl);
-      console.error("compressImageToDataUrl: image failed to decode", { fileType: file.type, fileSize: file.size, event });
-      reject(new Error("Could not read that image."));
+      reject(new Error("The browser could not decode this image file."));
     };
 
     img.src = objectUrl;
   });
+}
+
+export async function compressImageToDataUrl(file: File): Promise<string> {
+  if (typeof createImageBitmap === "function") {
+    try {
+      return await compressViaImageBitmap(file);
+    } catch (err) {
+      console.error("compressImageToDataUrl: createImageBitmap path failed, falling back", {
+        fileType: file.type,
+        fileSize: file.size,
+        err,
+      });
+      // Fall through to the <img>-based path below.
+    }
+  }
+
+  try {
+    return await compressViaImageElement(file);
+  } catch (err) {
+    console.error("compressImageToDataUrl: <img> fallback path also failed", {
+      fileType: file.type,
+      fileSize: file.size,
+      err,
+    });
+    throw err instanceof Error ? err : new Error(String(err));
+  }
 }

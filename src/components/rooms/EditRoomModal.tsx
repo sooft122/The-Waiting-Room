@@ -48,7 +48,8 @@ export default function EditRoomModal({ room, onClose, onSaved }: EditRoomModalP
       setImagePreview(await compressImageToDataUrl(file));
     } catch (err) {
       console.error("EditRoomModal: compressImageToDataUrl failed", err);
-      setErrors((prev) => ({ ...prev, image: "Could not process that image. Please try another." }));
+      const detail = err instanceof Error ? err.message : String(err);
+      setErrors((prev) => ({ ...prev, image: `Could not process that image: ${detail}` }));
     }
   }
 
