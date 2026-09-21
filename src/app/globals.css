@@ -352,3 +352,30 @@ body {
     animation: none;
   }
 }
+
+/* Chat message list: still scrollable, just without a visible scrollbar
+   track, and the content itself fades to nothing at all four edges
+   instead of getting cut off hard — softer than a clipped box, and works
+   regardless of whatever's behind the panel. */
+.chat-message-list {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  -webkit-mask-image:
+    linear-gradient(to bottom, transparent, black 20px, black calc(100% - 20px), transparent),
+    linear-gradient(to right, transparent, black 10px, black calc(100% - 10px), transparent);
+  -webkit-mask-composite: source-in;
+  -webkit-mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-image:
+    linear-gradient(to bottom, transparent, black 20px, black calc(100% - 20px), transparent),
+    linear-gradient(to right, transparent, black 10px, black calc(100% - 10px), transparent);
+  mask-composite: intersect;
+  mask-size: 100% 100%;
+  mask-repeat: no-repeat;
+}
+
+.chat-message-list::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}

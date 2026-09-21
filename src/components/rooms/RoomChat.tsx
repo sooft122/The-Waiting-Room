@@ -232,7 +232,7 @@ export default function RoomChat({ roomId, hasJoined }: RoomChatProps) {
         >
           <div
             ref={listRef}
-            className="flex max-h-[320px] flex-col gap-[9px] overflow-y-auto font-satoshi text-[12px] leading-normal"
+            className="chat-message-list flex max-h-[320px] flex-col gap-[9px] overflow-y-auto px-1 font-satoshi text-[12px] leading-normal"
           >
             {messages.length === 0 ? (
               <p className="text-white/40">No messages yet — say something.</p>
