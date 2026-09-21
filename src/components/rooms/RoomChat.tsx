@@ -187,28 +187,35 @@ export default function RoomChat({ roomId, hasJoined }: RoomChatProps) {
   return (
     <>
       {/* Closed state: a small round icon, fixed in place like the search
-          bar elsewhere in this app — always reachable regardless of scroll. */}
-      <button
-        type="button"
-        onClick={toggleOpen}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
-        aria-label={open ? "Close chat" : "Open chat"}
-        className={`fixed bottom-6 right-5 z-30 flex size-[50px] origin-bottom-right items-center justify-center overflow-hidden rounded-full shadow-[0px_4px_27px_0px_rgba(0,0,0,0.18)] active:scale-95 sm:right-8 lg:right-10 ${TRANSITION_CLASS} ${
+          bar elsewhere in this app — always reachable regardless of scroll.
+          The badge lives outside the button so the button's own
+          overflow-hidden (needed to keep the icon glyph circular) doesn't
+          clip it — it's meant to overlap the rim, not sit inset from it. */}
+      <div
+        className={`fixed bottom-6 right-5 z-30 origin-bottom-right ${TRANSITION_CLASS} ${
           open ? "pointer-events-none scale-75 opacity-0" : "scale-100 opacity-100"
-        }`}
-        style={{ backgroundImage: "linear-gradient(180deg, #252628, #18191b)" }}
+        } sm:right-8 lg:right-10`}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img alt="" className="size-6" src="/icons/message-01.svg" />
+        <button
+          type="button"
+          onClick={toggleOpen}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+          aria-label={open ? "Close chat" : "Open chat"}
+          className="relative flex size-[50px] items-center justify-center overflow-hidden rounded-full shadow-[0px_4px_27px_0px_rgba(0,0,0,0.18)] active:scale-95"
+          style={{ backgroundImage: "linear-gradient(180deg, #252628, #18191b)" }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img alt="" className="size-6" src="/icons/message-01.svg" />
+        </button>
         {hasUnread ? (
           <span
             aria-hidden
-            className="chat-unread-dot absolute right-[3px] top-[3px] size-[11px] rounded-full border-2 bg-red-500"
-            style={{ borderColor: "#18191b" }}
+            className="chat-unread-dot pointer-events-none absolute -right-0.5 -top-0.5 size-[13px] rounded-full border-2 bg-red-500"
+            style={{ borderColor: "#0c0d10" }}
           />
         ) : null}
-      </button>
+      </div>
 
       {/* Open state: message list + composer, growing out of the same
           bottom-right corner the icon sits in. */}
