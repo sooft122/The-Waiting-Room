@@ -7,6 +7,7 @@ import LeaveRoomButton from "@/components/rooms/LeaveRoomButton";
 import RoomMoodCard from "@/components/rooms/RoomMoodCard";
 import LobbyCard from "@/components/rooms/LobbyCard";
 import RoomEnergyBar from "@/components/rooms/RoomEnergyBar";
+import RoomChat from "@/components/rooms/RoomChat";
 import EditRoomModal from "@/components/rooms/EditRoomModal";
 import { CountdownRow } from "@/components/rooms/CountdownUnits";
 import { useCountdown } from "@/hooks/useCountdown";
@@ -359,6 +360,8 @@ export default function RoomDetailScreen({
       ) : (
         <div className="h-[10px]" />
       )}
+
+      {!hasEnded ? <RoomChat roomId={room.id} hasJoined={hasJoined} /> : null}
 
       {editing ? (
         <EditRoomModal room={room} onClose={() => setEditing(false)} onSaved={() => setEditing(false)} />
