@@ -47,7 +47,7 @@ function TabButton({
     <button
       type="button"
       onClick={onClick}
-      className="shrink-0 whitespace-nowrap rounded-[17px] px-3 py-1.5 font-satoshi text-[14px] opacity-65 transition-colors"
+      className="shrink-0 whitespace-nowrap rounded-[17px] px-3 py-1.5 font-satoshi text-[14px] transition-colors"
       style={
         active
           ? { backgroundImage: "linear-gradient(180deg, #a8a8a8, #d3d3d3)", color: "#000" }

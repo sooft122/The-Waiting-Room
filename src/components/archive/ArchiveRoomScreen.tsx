@@ -62,7 +62,7 @@ export default function ArchiveRoomScreen({ rooms, anonId }: ArchiveRoomScreenPr
                   key={option}
                   type="button"
                   onClick={() => setFilter(option)}
-                  className={`shrink-0 whitespace-nowrap rounded-[17px] px-3 py-1.5 font-satoshi text-[14px] opacity-65 transition-colors ${
+                  className={`shrink-0 whitespace-nowrap rounded-[17px] px-3 py-1.5 font-satoshi text-[14px] transition-colors ${
                     isActive ? "text-black" : "bg-[#1d1d1d] text-[#d0d0d0] hover:bg-[#262626]"
                   }`}
                   style={

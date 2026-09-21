@@ -13,15 +13,31 @@ export function CountdownUnit({ value, label }: { value: number; label: string }
 export function CountdownRow({
   countdown,
 }: {
-  countdown: { days: number; hrs: number; mins: number };
+  countdown: { days: number; hrs: number; mins: number; secs: number; totalMs: number };
 }) {
+  // Under an hour left, "days" is always 0 and not worth showing — swap it
+  // for seconds instead, so the last stretch counts down smoothly.
+  const isLastHour = countdown.totalMs <= 60 * 60 * 1000;
+
   return (
     <div className="flex items-start gap-2.5">
-      <CountdownUnit value={countdown.days} label="days" />
-      <span className="pt-0.5 text-[20px] opacity-65">:</span>
-      <CountdownUnit value={countdown.hrs} label="hrs" />
-      <span className="pt-0.5 text-[20px] opacity-65">:</span>
-      <CountdownUnit value={countdown.mins} label="mins" />
+      {isLastHour ? (
+        <>
+          <CountdownUnit value={countdown.hrs} label="hrs" />
+          <span className="pt-0.5 text-[20px] opacity-65">:</span>
+          <CountdownUnit value={countdown.mins} label="mins" />
+          <span className="pt-0.5 text-[20px] opacity-65">:</span>
+          <CountdownUnit value={countdown.secs} label="secs" />
+        </>
+      ) : (
+        <>
+          <CountdownUnit value={countdown.days} label="days" />
+          <span className="pt-0.5 text-[20px] opacity-65">:</span>
+          <CountdownUnit value={countdown.hrs} label="hrs" />
+          <span className="pt-0.5 text-[20px] opacity-65">:</span>
+          <CountdownUnit value={countdown.mins} label="mins" />
+        </>
+      )}
     </div>
   );
 }

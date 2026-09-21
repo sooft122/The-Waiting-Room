@@ -106,7 +106,7 @@ export default function DiscoverRoomsScreen({
                   key={filter}
                   type="button"
                   onClick={() => setCategoryFilter(filter)}
-                  className={`shrink-0 whitespace-nowrap rounded-[17px] px-3 py-1.5 font-satoshi text-[14px] opacity-65 transition-colors ${
+                  className={`shrink-0 whitespace-nowrap rounded-[17px] px-3 py-1.5 font-satoshi text-[14px] transition-colors ${
                     isActive ? "text-black" : "bg-[#1d1d1d] text-[#d0d0d0] hover:bg-[#262626]"
                   }`}
                   style={
@@ -186,7 +186,7 @@ export default function DiscoverRoomsScreen({
             <button
               type="button"
               onClick={() => setViewMode("discover")}
-              className="rounded-[30px] px-3.5 py-2.5 font-satoshi text-[14px] opacity-65 transition-colors"
+              className="rounded-[30px] px-3.5 py-2.5 font-satoshi text-[14px] transition-colors"
               style={
                 viewMode === "discover"
                   ? { backgroundImage: "linear-gradient(180deg, #a8a8a8, #d3d3d3)", color: "#000" }
@@ -198,7 +198,7 @@ export default function DiscoverRoomsScreen({
             <button
               type="button"
               onClick={() => setViewMode("mine")}
-              className="rounded-[30px] px-3.5 py-2.5 font-satoshi text-[14px] opacity-65 transition-colors"
+              className="rounded-[30px] px-3.5 py-2.5 font-satoshi text-[14px] transition-colors"
               style={
                 viewMode === "mine"
                   ? { backgroundImage: "linear-gradient(180deg, #a8a8a8, #d3d3d3)", color: "#000" }
