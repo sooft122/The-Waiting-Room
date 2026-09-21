@@ -37,9 +37,12 @@ export function useCountdown(targetIso: string): Countdown | null {
       timeoutId = setTimeout(tick, delay);
     }
 
-    const initial = computeCountdown(targetIso);
-    const initialDelay = initial && initial.totalMs < ONE_DAY_MS ? 1000 : 60_000;
-    timeoutId = setTimeout(tick, initialDelay);
+    // Recompute immediately rather than waiting out a delay first — the
+    // lazy useState initializer above only ever runs on mount, so without
+    // this, switching targetIso (e.g. the trending carousel advancing to a
+    // room with a different date) would keep showing the PREVIOUS room's
+    // countdown for up to a minute before the first scheduled tick caught up.
+    tick();
 
     return () => clearTimeout(timeoutId);
   }, [targetIso]);
