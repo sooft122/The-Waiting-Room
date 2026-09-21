@@ -17,7 +17,6 @@ import type { Mood, MoodBreakdown } from "@/lib/roomMood";
 type RoomDetailScreenProps = {
   room: Room;
   anonId: string | null;
-  viewerIdentity: string | null;
   isOwner: boolean;
   hasJoined: boolean;
   hasEnded: boolean;
@@ -70,7 +69,6 @@ function PrimaryPill({ label, danger }: { label: string; danger?: boolean }) {
 export default function RoomDetailScreen({
   room,
   anonId,
-  viewerIdentity,
   isOwner,
   hasJoined,
   hasEnded,
@@ -351,7 +349,6 @@ export default function RoomDetailScreen({
               hasJoined={hasJoined}
               joinedAt={joinedAt}
               lastSeenAt={lastSeenAt}
-              identity={viewerIdentity}
             />
           </div>
         </div>

@@ -50,7 +50,6 @@ export default async function RoomPage({ params }: { params: { id: string } }) {
     <RoomDetailScreen
       room={room}
       anonId={anonId}
-      viewerIdentity={identity}
       isOwner={isOwner}
       hasJoined={hasJoined}
       hasEnded={hasEnded}

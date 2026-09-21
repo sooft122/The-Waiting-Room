@@ -12,17 +12,13 @@ const CENTER = VIEWBOX / 2;
 const MIN_DOTS = 8;
 const MAX_DOTS = 60;
 
-function round2(value: number): number {
-  return Math.round(value * 100) / 100;
+/** Same formula used by LobbyCard to pick a valid random "me" dot index. */
+export function getDotCount(participantCount: number): number {
+  return Math.min(MAX_DOTS, Math.max(MIN_DOTS, Math.round(Math.sqrt(Math.max(participantCount, 0)) * 6)));
 }
 
-/** Small deterministic string hash (djb2-ish) — picks a stable dot per identity. */
-function hashString(value: string): number {
-  let hash = 5381;
-  for (let i = 0; i < value.length; i++) {
-    hash = (hash * 33 + value.charCodeAt(i)) >>> 0;
-  }
-  return hash;
+function round2(value: number): number {
+  return Math.round(value * 100) / 100;
 }
 
 /** Deterministic 0..1 "random" from an integer seed (mulberry32-style mix) —
@@ -71,19 +67,22 @@ function buildDots(count: number) {
 
 type LobbySwarmProps = {
   participantCount: number;
-  /** Stable identity string used to deterministically pick "your" dot. */
-  identity: string | null;
-  /** Whether "your" dot should currently glow (recently checked in). */
+  /** Which dot is "you" — freshly randomized per check-in by LobbyCard, not
+   * tied to identity, so it's never the same dot or color twice in a row. */
+  myDotIndex: number | null;
+  myGlowColor: string;
+  /** Whether "your" dot should currently glow (still within the check-in cooldown). */
   isGlowing: boolean;
 };
 
-export default function LobbySwarm({ participantCount, identity, isGlowing }: LobbySwarmProps) {
-  const dotCount = Math.min(
-    MAX_DOTS,
-    Math.max(MIN_DOTS, Math.round(Math.sqrt(Math.max(participantCount, 0)) * 6)),
-  );
+export default function LobbySwarm({
+  participantCount,
+  myDotIndex,
+  myGlowColor,
+  isGlowing,
+}: LobbySwarmProps) {
+  const dotCount = getDotCount(participantCount);
   const dots = buildDots(dotCount);
-  const meIndex = identity ? hashString(identity) % dotCount : -1;
 
   return (
     <svg viewBox={`0 0 ${VIEWBOX} ${VIEWBOX}`} className="block w-full max-w-[260px]" aria-hidden>
@@ -123,14 +122,18 @@ export default function LobbySwarm({ participantCount, identity, isGlowing }: Lo
 
       {dots.map((dot, i) => {
         // The viewer's own dot only stands out while it's actually glowing
-        // (recently checked in) — otherwise it looks like any other dot, so
-        // there's no permanent "this one is you" tell.
-        const isMeGlowing = i === meIndex && isGlowing;
+        // (checked in within the last hour) — otherwise it looks like any
+        // other dot, so there's no permanent "this one is you" tell.
+        const isMeGlowing = i === myDotIndex && isGlowing;
+        // --dx/--dy (read via var() inside the keyframe) work fine as custom
+        // properties. animationDuration/animationDelay do NOT — set as plain
+        // literal values instead (see the note in globals.css). The glowing
+        // dot pairs its own drift timing with the glow's fixed 1.8s/0s.
         const driftStyle: CSSProperties = {
           ["--dx" as string]: `${dot.dx}px`,
           ["--dy" as string]: `${dot.dy}px`,
-          ["--drift-duration" as string]: `${dot.duration}s`,
-          ["--drift-delay" as string]: `${dot.delay}s`,
+          animationDuration: isMeGlowing ? `${dot.duration}s, 1.8s` : `${dot.duration}s`,
+          animationDelay: isMeGlowing ? `${dot.delay}s, 0s` : `${dot.delay}s`,
         };
         return (
           <circle
@@ -139,7 +142,7 @@ export default function LobbySwarm({ participantCount, identity, isGlowing }: Lo
             cx={dot.x}
             cy={dot.y}
             r={isMeGlowing ? dot.size / 2 + 1.5 : dot.size / 2}
-            fill={isMeGlowing ? "#ffcf6b" : "white"}
+            fill={isMeGlowing ? myGlowColor : "white"}
             opacity={isMeGlowing ? 1 : dot.opacity}
             style={driftStyle}
           />

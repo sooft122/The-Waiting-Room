@@ -1,11 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useElapsed } from "@/hooks/useElapsed";
 import { useCooldown } from "@/hooks/useCooldown";
-import { CHECK_IN_COOLDOWN_MS, PRESENCE_WINDOW_MS } from "@/lib/roomPresenceConstants";
-import LobbySwarm from "./LobbySwarm";
+import { CHECK_IN_COOLDOWN_MS } from "@/lib/roomPresenceConstants";
+import LobbySwarm, { getDotCount } from "./LobbySwarm";
+
+// A different dot AND a different color every time someone checks in — no
+// two people (or even the same person twice) look the same.
+const GLOW_COLORS = ["#ffcf6b", "#7ce8ff", "#ff8fd1", "#8fffb0", "#c58fff", "#ffb17c"];
 
 type LobbyCardProps = {
   roomId: string;
@@ -13,7 +17,6 @@ type LobbyCardProps = {
   hasJoined: boolean;
   joinedAt: string | null;
   lastSeenAt: string | null;
-  identity: string | null;
 };
 
 export default function LobbyCard({
@@ -22,15 +25,32 @@ export default function LobbyCard({
   hasJoined,
   joinedAt,
   lastSeenAt,
-  identity,
 }: LobbyCardProps) {
   const router = useRouter();
   const [checkingIn, setCheckingIn] = useState(false);
   const [localLastSeenAt, setLocalLastSeenAt] = useState(lastSeenAt);
+  const [myDotIndex, setMyDotIndex] = useState<number | null>(null);
+  const [myGlowColor, setMyGlowColor] = useState(GLOW_COLORS[0]);
   const elapsed = useElapsed(joinedAt);
+  // The glow now lasts exactly as long as the cooldown — previously it faded
+  // after 15 minutes while the button stayed locked for a full hour, which
+  // read as "am I still checked in or not?". Now they match: glowing for as
+  // long as you're not allowed to check in again.
   const cooldown = useCooldown(localLastSeenAt, CHECK_IN_COOLDOWN_MS);
-  const presence = useCooldown(localLastSeenAt, PRESENCE_WINDOW_MS);
-  const isGlowing = presence.active;
+  const isGlowing = cooldown.active;
+
+  // Re-roll which dot is "you" and what color it glows whenever you become
+  // checked-in — on mount (e.g. reloading mid-cooldown) and after every
+  // fresh "I'm Still Here" click.
+  useEffect(() => {
+    if (!isGlowing) return;
+    const dotCount = getDotCount(participantCount);
+    setMyDotIndex(Math.floor(Math.random() * dotCount));
+    setMyGlowColor(GLOW_COLORS[Math.floor(Math.random() * GLOW_COLORS.length)]);
+    // Only re-roll when a check-in actually happens (localLastSeenAt
+    // changes) or the swarm size changes — not on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [localLastSeenAt, participantCount]);
 
   async function handleCheckIn() {
     if (cooldown.active) return;
@@ -59,7 +79,8 @@ export default function LobbyCard({
           {hasJoined && elapsed ? (
             <div className="flex items-center gap-[8px] rounded-[6px] bg-[#16171a] px-[12px] py-[6px]">
               <span
-                className={`size-[5px] shrink-0 rounded-full bg-[#7cff8f] ${isGlowing ? "lobby-dot-me" : ""}`}
+                className="size-[5px] shrink-0 rounded-full bg-[#7cff8f]"
+                style={isGlowing ? { backgroundColor: myGlowColor } : undefined}
               />
               <span className="whitespace-nowrap font-figtree text-[12px] text-white opacity-70">
                 You’ve been waiting . {elapsed}
@@ -85,7 +106,12 @@ export default function LobbyCard({
       </div>
 
       <div className="relative flex flex-1 flex-col items-center justify-center py-8">
-        <LobbySwarm participantCount={participantCount} identity={identity} isGlowing={isGlowing} />
+        <LobbySwarm
+          participantCount={participantCount}
+          myDotIndex={myDotIndex}
+          myGlowColor={myGlowColor}
+          isGlowing={isGlowing}
+        />
         <div className="pointer-events-none absolute flex flex-col items-center gap-1">
           <span className="font-inter text-[21px] text-[#f4f4f5]">
             {participantCount.toLocaleString()}

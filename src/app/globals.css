@@ -220,63 +220,30 @@ body {
   }
 }
 
-/* Room Mood rows: hovering (or having selected) a mood surrounds the whole
-   pill with a soft ambient halo in that mood's own two-tone color — a tight,
-   more saturated inner glow plus a larger, softer outer one — not a full
-   background tint. The row itself keeps only a faint diagonal sheen. */
-.mood-row {
-  position: relative;
-  transition: box-shadow 300ms ease;
-  background-image: linear-gradient(172deg, rgba(255, 255, 255, 0.05) 2.6%, rgba(255, 255, 255, 0) 45%);
-}
-
-.mood-row[data-mood="Hype"]:hover,
-.mood-row[data-mood="Hype"][data-selected="true"] {
-  box-shadow:
-    0 0 18px 2px rgba(212, 165, 46, 0.55),
-    0 0 46px 6px rgba(159, 199, 79, 0.4);
-}
-
-.mood-row[data-mood="Nervous"]:hover,
-.mood-row[data-mood="Nervous"][data-selected="true"] {
-  box-shadow:
-    0 0 18px 2px rgba(92, 46, 212, 0.55),
-    0 0 46px 6px rgba(158, 79, 199, 0.4);
-}
-
-.mood-row[data-mood="Tired"]:hover,
-.mood-row[data-mood="Tired"][data-selected="true"] {
-  box-shadow:
-    0 0 18px 2px rgba(212, 46, 46, 0.55),
-    0 0 46px 6px rgba(255, 179, 179, 0.4);
-}
-
-.mood-row[data-mood="Curious"]:hover,
-.mood-row[data-mood="Curious"][data-selected="true"] {
-  box-shadow:
-    0 0 18px 2px rgba(46, 82, 212, 0.55),
-    0 0 46px 6px rgba(179, 249, 255, 0.4);
-}
-
-.mood-row[data-mood="Just Here"]:hover,
-.mood-row[data-mood="Just Here"][data-selected="true"] {
-  box-shadow:
-    0 0 18px 2px rgba(229, 229, 229, 0.4),
-    0 0 46px 6px rgba(143, 143, 143, 0.32);
-}
-
+/* Room Mood rows: YouTube-poll style. A fill bar grows to the option's
+   percentage; hovering gives the same traveling light-on-glass edge as
+   Room Cards (.room-card-glow, reused as-is — uniform white, not colored);
+   the selected option alone picks up its mood's own color as a solid
+   border + tinted fill, like a poll's "your answer" highlight. */
 .mood-row:disabled:hover {
   box-shadow: none;
 }
 
-/* Lobby swarm: each dot drifts along its own small, slow orbit. Per-dot
-   offsets/timing come from CSS custom properties set inline (deterministic,
-   not random-at-render, so server and client markup always match). */
+/* Lobby swarm: each dot drifts along its own small, slow orbit. The --dx/--dy
+   transform offsets are CSS custom properties set inline (that works fine
+   via var()). animation-duration/animation-delay are NOT — confirmed by
+   testing directly against this app's renderer: a var() standing in for
+   duration or delay (shorthand OR longhand, inline OR class-based) computes
+   to the right value in getComputedStyle, but the animation then drives no
+   transform at all. So duration/delay are set as plain per-dot inline
+   values (`${n}s`) from LobbySwarm.tsx instead — only animation-name/
+   timing-function/iteration-count live here, since those aren't affected. */
 .lobby-dot {
   transform-box: fill-box;
   transform-origin: center;
-  animation: lobby-dot-drift var(--drift-duration, 20s) ease-in-out infinite;
-  animation-delay: var(--drift-delay, 0s);
+  animation-name: lobby-dot-drift;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
 }
 
 @keyframes lobby-dot-drift {
@@ -295,8 +262,13 @@ body {
   }
 }
 
+/* A second, comma-paired animation for the glow pulse so the glowing dot
+   keeps drifting too — duration/delay for both come from inline styles in
+   LobbySwarm.tsx (see note above), not var() here. */
 .lobby-dot-me {
-  animation: lobby-dot-glow 1.8s ease-in-out infinite;
+  animation-name: lobby-dot-drift, lobby-dot-glow;
+  animation-timing-function: ease-in-out, ease-in-out;
+  animation-iteration-count: infinite, infinite;
 }
 
 @keyframes lobby-dot-glow {
