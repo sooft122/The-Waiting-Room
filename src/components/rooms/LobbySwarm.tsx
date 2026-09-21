@@ -56,7 +56,7 @@ function buildDots(count: number) {
     // loop, quick enough to notice while staying gentle rather than jittery.
     const dx = round2(2 + pseudoRandom(i * 7 + 1) * 5);
     const dy = round2(2 + pseudoRandom(i * 7 + 2) * 5);
-    const duration = round2(7 + pseudoRandom(i * 7 + 3) * 9);
+    const duration = round2(3.5 + pseudoRandom(i * 7 + 3) * 4.5);
     const delay = round2(pseudoRandom(i * 7 + 4) * 10);
 
     // A much quicker, independent breathing cycle — dims toward a fraction
