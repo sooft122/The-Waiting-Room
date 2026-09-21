@@ -229,6 +229,13 @@ body {
   box-shadow: none;
 }
 
+/* The selected row already shows its own mood-colored border/fill —
+   the white light-on-glass hover glow would just compete with that. */
+.mood-row[data-selected="true"]:hover::after {
+  opacity: 0;
+  animation: none;
+}
+
 /* Lobby swarm: each dot drifts along its own small, slow orbit. The --dx/--dy
    transform offsets are CSS custom properties set inline (that works fine
    via var()). animation-duration/animation-delay are NOT — confirmed by
