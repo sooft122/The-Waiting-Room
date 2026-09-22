@@ -52,6 +52,10 @@ body {
   .animate-hero-in {
     animation: hero-in 800ms cubic-bezier(0.16, 1, 0.3, 1) both;
   }
+
+  .animate-carousel-slide-in {
+    animation: carousel-slide-in 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
 }
 
 @keyframes dropdown-in {
@@ -75,6 +79,21 @@ body {
     opacity: 1;
     transform: translateY(0);
     filter: blur(0);
+  }
+}
+
+/* Trending carousel: each slide is remounted (keyed by room id) on every
+   change, which re-triggers this — the new slide visibly moves in from the
+   direction of travel (--carousel-slide-from, set inline per slide change)
+   instead of the content just cutting instantly to the next room. */
+@keyframes carousel-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(var(--carousel-slide-from, 32px));
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
   }
 }
 
@@ -145,7 +164,8 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .animate-dropdown-in,
-  .animate-hero-in {
+  .animate-hero-in,
+  .animate-carousel-slide-in {
     animation-duration: 1ms;
     animation-delay: 0ms !important;
   }

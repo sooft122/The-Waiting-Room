@@ -5,7 +5,7 @@ import type { FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import SiteHeader from "@/components/layout/SiteHeader";
-import { ROOM_CATEGORIES } from "@/lib/rooms";
+import { ROOM_CATEGORIES, isRoomActive } from "@/lib/rooms";
 import type { Room } from "@/lib/rooms";
 import { getSectionRooms } from "@/lib/roomSections";
 import { useStaggerEntrance } from "@/hooks/useStaggerEntrance";
@@ -45,11 +45,17 @@ export default function DiscoverRoomsScreen({
 
   const myIdentity = session?.user?.email ?? (anonId ? `anon:${anonId}` : null);
 
+  // Discover Rooms is a surface for finding rooms to join, not an archive —
+  // ended rooms belong on Profile/Archive instead. Filtering here, before
+  // anything downstream (counts, sections, the carousel), keeps every part
+  // of this page consistent about only ever showing active rooms.
+  const activeRooms = useMemo(() => rooms.filter(isRoomActive), [rooms]);
+
   const scopedRooms = useMemo(() => {
-    if (viewMode === "discover") return rooms;
+    if (viewMode === "discover") return activeRooms;
     if (!myIdentity) return [];
-    return rooms.filter((room) => room.createdBy === myIdentity);
-  }, [rooms, viewMode, myIdentity]);
+    return activeRooms.filter((room) => room.createdBy === myIdentity);
+  }, [activeRooms, viewMode, myIdentity]);
 
   const categoryCounts = useMemo(() => {
     const counts: Record<CategoryFilter, number> = {
@@ -75,24 +81,26 @@ export default function DiscoverRoomsScreen({
   );
 
   // Trending = the most-waited-for rooms, ranked by live participant count.
-  // Ended rooms are excluded outright — there's nothing left to "trend"
-  // toward once the wait is over. Spread before sort/filter so this never
-  // mutates filteredRooms itself, which RoomSectionRow below relies on
-  // staying in its original (newest-first) order.
+  // filteredRooms is already active-only (via activeRooms above), so no
+  // separate ended-room filter is needed here. Spread before sort so this
+  // never mutates filteredRooms itself, which RoomSectionRow below relies
+  // on staying in its original (newest-first) order.
   const carouselRooms = useMemo(
-    () =>
-      [...filteredRooms]
-        .filter((room) => new Date(room.date).getTime() > Date.now())
-        .sort((a, b) => b.participantCount - a.participantCount)
-        .slice(0, 4),
+    () => [...filteredRooms].sort((a, b) => b.participantCount - a.participantCount).slice(0, 4),
     [filteredRooms],
   );
 
   // "Starting Soon" and "Mostly Crowded" need signals we don't track yet
   // (a soon-to-start window, and live participant counts) — deliberately
   // left empty for now rather than faked.
-  const startingSoonRooms = useMemo(() => getSectionRooms(rooms, "starting-soon"), [rooms]);
-  const mostlyCrowdedRooms = useMemo(() => getSectionRooms(rooms, "mostly-crowded"), [rooms]);
+  const startingSoonRooms = useMemo(
+    () => getSectionRooms(activeRooms, "starting-soon"),
+    [activeRooms],
+  );
+  const mostlyCrowdedRooms = useMemo(
+    () => getSectionRooms(activeRooms, "mostly-crowded"),
+    [activeRooms],
+  );
 
   function handleSearchSubmit(event: FormEvent) {
     event.preventDefault();

@@ -67,6 +67,11 @@ export function isRoomCategory(value: unknown): value is RoomCategory {
   return typeof value === "string" && (ROOM_CATEGORIES as readonly string[]).includes(value);
 }
 
+/** Whether a room's wait is still ongoing (its end date hasn't passed yet). */
+export function isRoomActive(room: Room): boolean {
+  return new Date(room.date).getTime() > Date.now();
+}
+
 async function getParticipantCount(roomId: string): Promise<number> {
   const redis = getRedis();
   if (!redis) return 0;

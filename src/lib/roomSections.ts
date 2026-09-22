@@ -1,3 +1,4 @@
+import { isRoomActive } from "./rooms";
 import type { Room } from "./rooms";
 
 export type RoomSectionSlug = "recently-created" | "starting-soon" | "mostly-crowded";
@@ -32,8 +33,10 @@ export function getRoomSection(slug: string): RoomSectionMeta | null {
 
 /** "Starting Soon" and "Mostly Crowded" need signals we don't track yet (a
  * soon-to-start window, live participant counts) — deliberately left empty
- * rather than faked, same policy as the homepage sections they mirror. */
+ * rather than faked, same policy as the homepage sections they mirror.
+ * "Recently Created" excludes ended rooms — this is a discovery surface for
+ * rooms you can still join and wait in, not an archive of past ones. */
 export function getSectionRooms(rooms: Room[], slug: RoomSectionSlug): Room[] {
-  if (slug === "recently-created") return rooms;
+  if (slug === "recently-created") return rooms.filter(isRoomActive);
   return [];
 }

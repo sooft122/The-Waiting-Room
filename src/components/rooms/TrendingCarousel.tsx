@@ -12,6 +12,9 @@ type TrendingCarouselProps = {
   rooms: Room[];
 };
 
+// How long each slide stays up before auto-advancing to the next one.
+const AUTO_ADVANCE_MS = 10_000;
+
 /**
  * Full-bleed hero carousel, one room at a time. There's no real "trending"
  * signal yet (no join/view counts), so for now this just cycles through
@@ -20,12 +23,19 @@ type TrendingCarouselProps = {
 export default function TrendingCarousel({ rooms }: TrendingCarouselProps) {
   const router = useRouter();
   const [index, setIndex] = useState(0);
+  // Which way the last slide change moved, so the entrance animation below
+  // can slide in from the matching side (right for next/auto-advance, left
+  // for prev) instead of always sliding in from the same direction.
+  const [direction, setDirection] = useState(1);
   const room = rooms[Math.min(index, rooms.length - 1)] ?? null;
   const countdown = useCountdown(room?.date ?? new Date(Date.now() + 86_400_000).toISOString());
 
   useEffect(() => {
     if (rooms.length <= 1) return;
-    const id = setInterval(() => setIndex((current) => (current + 1) % rooms.length), 6000);
+    const id = setInterval(() => {
+      setDirection(1);
+      setIndex((current) => (current + 1) % rooms.length);
+    }, AUTO_ADVANCE_MS);
     return () => clearInterval(id);
   }, [rooms.length]);
 
@@ -34,6 +44,7 @@ export default function TrendingCarousel({ rooms }: TrendingCarouselProps) {
   const hasEnded = countdown === null;
 
   function goTo(nextIndex: number) {
+    setDirection(nextIndex > index ? 1 : -1);
     setIndex((nextIndex + rooms.length) % rooms.length);
   }
 
@@ -58,65 +69,75 @@ export default function TrendingCarousel({ rooms }: TrendingCarouselProps) {
       }}
       className="relative h-[440px] w-full cursor-pointer overflow-hidden rounded-[20px] bg-black sm:h-[360px] lg:h-[429px]"
     >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img alt="" src={room.imageUrl} className="absolute inset-0 size-full object-cover" />
+      {/* Keyed by room id so React remounts this whole subtree on every
+          slide change, re-triggering carousel-slide-in — the slide visibly
+          moves in from the direction of travel instead of the content just
+          cutting instantly to the next room. */}
       <div
-        aria-hidden
-        className="absolute inset-0"
-        style={{
-          backgroundImage: "linear-gradient(to bottom, rgba(0,0,0,0) 38.473%, #000000 92.271%)",
-        }}
-      />
+        key={room.id}
+        className="animate-carousel-slide-in absolute inset-0"
+        style={{ ["--carousel-slide-from" as string]: direction > 0 ? "32px" : "-32px" }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img alt="" src={room.imageUrl} className="absolute inset-0 size-full object-cover" />
+        <div
+          aria-hidden
+          className="absolute inset-0"
+          style={{
+            backgroundImage: "linear-gradient(to bottom, rgba(0,0,0,0) 38.473%, #000000 92.271%)",
+          }}
+        />
 
-      {/* bottom-16 (not -8) on mobile: at the page's natural scroll
-          position, the fixed Discover/Search bar's top edge lands right
-          around here on common phone viewport heights — the extra
-          clearance keeps the Join Room button from sitting partly under it. */}
-      <div className="absolute inset-x-5 bottom-16 flex flex-col items-start gap-3 sm:inset-x-[50px] sm:bottom-[50px] sm:flex-row sm:items-end sm:justify-between sm:gap-4">
-        <div className="flex min-w-0 flex-col gap-1 font-satoshi text-white">
-          <p className="text-[14px]">🔥 Trending</p>
-          <p className="max-w-full truncate text-[20px] sm:max-w-[50vw] sm:text-[26px]">{room.name}</p>
-          <p className="text-[15px] opacity-65 sm:text-[18px]">
-            {room.participantCount.toLocaleString()} {hasEnded ? "waited" : "waiting"}
-          </p>
-        </div>
-
-        {hasEnded ? (
-          <p className="shrink-0 font-satoshi text-[14px] text-white opacity-65">Wait Ended</p>
-        ) : (
-          <div className="flex shrink-0 flex-col items-start gap-[17px] text-white">
-            <CountdownRow countdown={countdown} />
-            {/* Its own destination (join then go to the room), not the
-                slide's plain navigate — stop the click from also bubbling
-                into the slide's handler above. */}
-            <div onClick={stopPropagation}>
-              <JoinRoomButton
-                roomId={room.id}
-                className="relative flex w-[161px] flex-col items-center overflow-hidden rounded-[10px] bg-white p-px shadow-[0px_1px_4px_0px_rgba(0,0,0,0.2)] disabled:opacity-70"
-              >
-                <span className="relative flex w-full items-center justify-center gap-1 overflow-hidden rounded-[9px] px-[30px] py-2">
-                  <span
-                    aria-hidden
-                    className="absolute inset-0 rounded-[9px]"
-                    style={{
-                      backgroundImage:
-                        "linear-gradient(180.56deg, rgb(228,221,221) 19.37%, rgb(220,220,220) 40.857%, rgb(216,213,213) 65.087%, rgb(209,209,209) 97.546%)",
-                    }}
-                  />
-                  <span className="relative font-figtree text-[12px] font-medium text-black">
-                    Join Room
-                  </span>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img alt="" className="relative size-3.5" src="/icons/arrow-right-02.svg" />
-                  <span
-                    aria-hidden
-                    className="pointer-events-none absolute inset-0 rounded-[inherit] shadow-[inset_0px_1px_0px_0px_rgba(28,28,28,0.05)]"
-                  />
-                </span>
-              </JoinRoomButton>
-            </div>
+        {/* bottom-16 (not -8) on mobile: at the page's natural scroll
+            position, the fixed Discover/Search bar's top edge lands right
+            around here on common phone viewport heights — the extra
+            clearance keeps the Join Room button from sitting partly under it. */}
+        <div className="absolute inset-x-5 bottom-16 flex flex-col items-start gap-3 sm:inset-x-[50px] sm:bottom-[50px] sm:flex-row sm:items-end sm:justify-between sm:gap-4">
+          <div className="flex min-w-0 flex-col gap-1 font-satoshi text-white">
+            <p className="text-[14px]">🔥 Trending</p>
+            <p className="max-w-full truncate text-[20px] sm:max-w-[50vw] sm:text-[26px]">{room.name}</p>
+            <p className="text-[15px] opacity-65 sm:text-[18px]">
+              {room.participantCount.toLocaleString()} {hasEnded ? "waited" : "waiting"}
+            </p>
           </div>
-        )}
+
+          {hasEnded ? (
+            <p className="shrink-0 font-satoshi text-[14px] text-white opacity-65">Wait Ended</p>
+          ) : (
+            <div className="flex shrink-0 flex-col items-start gap-[17px] text-white">
+              <CountdownRow countdown={countdown} />
+              {/* Its own destination (join then go to the room), not the
+                  slide's plain navigate — stop the click from also bubbling
+                  into the slide's handler above. */}
+              <div onClick={stopPropagation}>
+                <JoinRoomButton
+                  roomId={room.id}
+                  className="relative flex w-[161px] flex-col items-center overflow-hidden rounded-[10px] bg-white p-px shadow-[0px_1px_4px_0px_rgba(0,0,0,0.2)] disabled:opacity-70"
+                >
+                  <span className="relative flex w-full items-center justify-center gap-1 overflow-hidden rounded-[9px] px-[30px] py-2">
+                    <span
+                      aria-hidden
+                      className="absolute inset-0 rounded-[9px]"
+                      style={{
+                        backgroundImage:
+                          "linear-gradient(180.56deg, rgb(228,221,221) 19.37%, rgb(220,220,220) 40.857%, rgb(216,213,213) 65.087%, rgb(209,209,209) 97.546%)",
+                      }}
+                    />
+                    <span className="relative font-figtree text-[12px] font-medium text-black">
+                      Join Room
+                    </span>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img alt="" className="relative size-3.5" src="/icons/arrow-right-02.svg" />
+                    <span
+                      aria-hidden
+                      className="pointer-events-none absolute inset-0 rounded-[inherit] shadow-[inset_0px_1px_0px_0px_rgba(28,28,28,0.05)]"
+                    />
+                  </span>
+                </JoinRoomButton>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {rooms.length > 1 ? (
