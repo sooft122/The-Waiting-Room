@@ -17,9 +17,7 @@ export default function RoomCard({ room, joined = false }: RoomCardProps) {
   return (
     <Link
       href={`/rooms/${room.id}`}
-      className={`room-card-glow group relative block w-full max-w-[296px] overflow-hidden rounded-[20px] border border-transparent bg-[#101113] transition-colors hover:border-[rgba(227,221,221,0.25)] ${
-        hasEnded ? "h-[274px]" : "h-[290px]"
-      }`}
+      className="room-card-glow group relative block h-[290px] w-full max-w-[296px] overflow-hidden rounded-[20px] border border-transparent bg-[#101113] transition-colors hover:border-[rgba(227,221,221,0.25)]"
     >
       <div className="absolute left-0 top-0 h-[207px] w-full overflow-hidden">
         {/* eslint-disable-next-line @next/next/no-img-element */}
