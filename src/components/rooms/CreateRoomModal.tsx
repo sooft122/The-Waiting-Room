@@ -12,6 +12,11 @@ import ModalShell from "./ModalShell";
 // downscaling every image before it's stored, not by this raw-file check.
 const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
 
+// Mirrors MAX_IMAGE_DATA_URL_LENGTH in src/app/api/rooms/route.ts — kept in
+// sync so an unsupported-format fallback fails clearly here instead of
+// after a round trip to the server.
+const MAX_IMAGE_DATA_URL_LENGTH = 5_600_000;
+
 type FormErrors = Partial<Record<"image" | "name" | "date" | "category" | "form", string>>;
 
 type CreateRoomModalProps = {
@@ -52,7 +57,7 @@ export default function CreateRoomModal({ onClose, onCreated }: CreateRoomModalP
     }
     setErrors((prev) => ({ ...prev, image: undefined }));
     try {
-      setImagePreview(await compressImageToDataUrl(file));
+      setImagePreview(await compressImageToDataUrl(file, MAX_IMAGE_DATA_URL_LENGTH));
     } catch (err) {
       console.error("CreateRoomModal: compressImageToDataUrl failed", err);
       const detail = err instanceof Error ? err.message : String(err);

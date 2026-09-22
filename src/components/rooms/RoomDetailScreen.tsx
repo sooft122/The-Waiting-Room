@@ -116,7 +116,7 @@ export default function RoomDetailScreen({
         {/* Large Media Frame — capped to a portion of the viewport height
             (not a full-bleed aspect ratio) so it never dominates the whole
             screen regardless of image shape or window size. */}
-        <div className="relative h-[90vh] w-full overflow-hidden bg-black">
+        <div className="relative min-h-[90vh] w-full overflow-hidden bg-black sm:h-[90vh]">
           {/* Image fills the entire hero edge-to-edge (object-cover, full bleed).
               Only the CONTENT below (text, buttons, energy bar) is aligned to
               the nav's own width — the photo itself is never inset. */}
@@ -230,9 +230,15 @@ export default function RoomDetailScreen({
             </div>
           ) : analytics ? (
             // Figma centers this analytics block as its own narrower (921px)
-            // column rather than stretching it to the nav's full width.
-            <div className="absolute inset-0 px-4 sm:px-8">
-              <div className="mx-auto flex size-full max-w-[921px] flex-col items-center justify-end gap-[7px] pb-4 sm:pb-7">
+            // column rather than stretching it to the nav's full width. On
+            // mobile the stat cards stack into a single tall column, which
+            // can run taller than the 90vh hero — this stays in normal flow
+            // there (growing the hero to fit, pt- clears the fixed nav)
+            // instead of the absolute/inset-0 + justify-end used from sm up,
+            // which relied on everything fitting within a hard-clipped box
+            // and was silently cutting the top of the stack off on mobile.
+            <div className="relative px-4 pb-4 pt-[104px] sm:absolute sm:inset-0 sm:px-8 sm:pb-0 sm:pt-0">
+              <div className="mx-auto flex w-full max-w-[921px] flex-col items-center gap-[7px] sm:h-full sm:justify-end sm:pb-7">
                 <div
                   className={`flex w-full items-center gap-[9px] opacity-70 ${endedDividerEntrance.className}`}
                   style={endedDividerEntrance.style}
@@ -245,7 +251,7 @@ export default function RoomDetailScreen({
                 </div>
 
                 <div
-                  className={`flex w-full flex-col gap-[8px] rounded-[20px] bg-black/5 p-[9px] sm:flex-row ${endedStatsEntrance.className}`}
+                  className={`flex w-full flex-col gap-[8px] rounded-[20px] border border-[rgba(255,244,244,0.1)] bg-[rgba(0,0,0,0.31)] p-[9px] sm:flex-row ${endedStatsEntrance.className}`}
                   style={endedStatsEntrance.style}
                 >
                   <div className="h-[140px] w-full shrink-0 overflow-hidden rounded-[16px] bg-black sm:h-[177px] sm:w-[204px]">
@@ -253,7 +259,7 @@ export default function RoomDetailScreen({
                     <img alt="" src={room.imageUrl} className="size-full object-cover" />
                   </div>
                   <div className="grid w-full grid-cols-1 gap-[8px] sm:grid-cols-3">
-                    <div className="flex flex-col justify-center gap-[14px] rounded-[16px] bg-[rgba(16,17,19,0.05)] p-[14px] sm:h-[177px]">
+                    <div className="flex flex-col justify-center gap-[14px] rounded-[16px] border border-[rgba(255,255,255,0.09)] bg-[#0c0d10] p-[14px] sm:h-[177px]">
                       <div className="flex flex-col gap-[6px]">
                         <div className="flex items-center gap-[6px] opacity-70">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -282,7 +288,7 @@ export default function RoomDetailScreen({
                       </div>
                     </div>
 
-                    <div className="flex flex-col justify-between gap-[14px] rounded-[16px] bg-[rgba(16,17,19,0.05)] p-[14px] sm:h-[177px]">
+                    <div className="flex flex-col justify-between gap-[14px] rounded-[16px] border border-[rgba(255,255,255,0.09)] bg-[#0c0d10] p-[14px] sm:h-[177px]">
                       <div className="flex flex-col gap-[6px]">
                         <div className="flex items-center gap-[6px] opacity-70">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -305,14 +311,15 @@ export default function RoomDetailScreen({
                       </div>
                     </div>
 
-                    <div className="flex flex-col items-center justify-center gap-[4px] rounded-[16px] bg-[rgba(16,17,19,0.05)] p-[14px] text-center sm:h-[177px]">
+                    <div className="flex flex-col items-center justify-center gap-[4px] rounded-[16px] border border-[rgba(255,255,255,0.09)] bg-[#0c0d10] p-[14px] text-center sm:h-[177px]">
                       <div className="flex items-center gap-[6px] self-start opacity-70">
-                        <span className="text-[16px] leading-none">🙂</span>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img alt="" className="size-[16px]" src="/icons/look-top.svg" />
                         <p className="font-satoshi text-[12px] text-[#dcdcdc]">
                           {analytics.topMood ? `Majority were ${analytics.topMood}` : "No mood votes yet"}
                         </p>
                       </div>
-                      <span className="text-[64px] leading-none sm:text-[80px]">{topMoodEmoji}</span>
+                      <span className="text-[64px] leading-none sm:text-[80px] lg:text-[96px]">{topMoodEmoji}</span>
                     </div>
                   </div>
                 </div>

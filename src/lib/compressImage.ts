@@ -79,7 +79,13 @@ function compressViaImageElement(file: File): Promise<string> {
   });
 }
 
-export async function compressImageToDataUrl(file: File): Promise<string> {
+export async function compressImageToDataUrl(
+  file: File,
+  // The caller's server-side data-URL length cap (avatars and room images
+  // enforce different limits) — only checked against the raw fallback below,
+  // since the canvas-encoded paths always downscale well under either cap.
+  maxDataUrlLength = Infinity,
+): Promise<string> {
   if (typeof createImageBitmap === "function") {
     try {
       return await compressViaImageBitmap(file);
@@ -103,7 +109,18 @@ export async function compressImageToDataUrl(file: File): Promise<string> {
     });
   }
 
-  // Neither decode path could handle this file's format — fall back to
-  // storing it uncompressed rather than blocking the upload outright.
-  return readRawDataUrl(file);
+  // Neither decode path could handle this file's format (most often
+  // HEIC/HEIF straight off a phone camera roll, which canvas can't touch in
+  // most mobile browsers) — fall back to storing it uncompressed rather than
+  // blocking the upload outright. That skips downscaling entirely though, so
+  // an ordinary multi-MB phone photo will usually blow the server's size cap
+  // — surface that clearly now instead of letting it fail later as a vague
+  // "too large" error after a wasted round trip.
+  const raw = await readRawDataUrl(file);
+  if (raw.length > maxDataUrlLength) {
+    throw new Error(
+      "This photo's format can't be compressed on this device, and the original file is too large to upload as-is. Try a different photo, or convert it to JPG first.",
+    );
+  }
+  return raw;
 }

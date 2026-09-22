@@ -7,6 +7,11 @@ import { compressImageToDataUrl } from "@/lib/compressImage";
 // downscaling every image before it's stored, not by this raw-file check.
 const MAX_AVATAR_BYTES = 20 * 1024 * 1024;
 
+// Mirrors MAX_AVATAR_DATA_URL_LENGTH in src/app/api/profile/route.ts — kept
+// in sync so an unsupported-format fallback fails clearly here instead of
+// after a round trip to the server.
+const MAX_AVATAR_DATA_URL_LENGTH = 4_200_000;
+
 type ProfileAvatarProps = {
   src: string | null;
   anonymous: boolean;
@@ -64,7 +69,7 @@ export default function ProfileAvatar({
     }
     setError(null);
     try {
-      onChange?.(await compressImageToDataUrl(file));
+      onChange?.(await compressImageToDataUrl(file, MAX_AVATAR_DATA_URL_LENGTH));
     } catch (err) {
       console.error("ProfileAvatar: compressImageToDataUrl failed", err);
       const detail = err instanceof Error ? err.message : String(err);
@@ -88,7 +93,7 @@ export default function ProfileAvatar({
               type="button"
               onClick={() => fileInputRef.current?.click()}
               aria-label="Change profile picture"
-              className={`absolute inset-0 flex items-center justify-center bg-black/55 transition-opacity ${
+              className={`avatar-change-overlay absolute inset-0 flex items-center justify-center bg-black/55 transition-opacity ${
                 hovering ? "opacity-100" : "opacity-0"
               }`}
             >

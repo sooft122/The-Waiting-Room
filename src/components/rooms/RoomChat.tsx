@@ -226,10 +226,7 @@ export default function RoomChat({ roomId, hasJoined }: RoomChatProps) {
           open ? "translate-y-0 scale-100 opacity-100" : "pointer-events-none translate-y-4 scale-95 opacity-0"
         }`}
       >
-        <div
-          className="flex max-h-[70vh] flex-col justify-end gap-[18px] overflow-hidden rounded-[20px] p-4"
-          style={{ backgroundImage: "linear-gradient(to bottom, rgba(12,13,16,0), #0c0d10 55%)" }}
-        >
+        <div className="chat-panel-backdrop flex max-h-[70vh] flex-col justify-end gap-[18px] overflow-hidden rounded-[20px] p-4">
           <div
             ref={listRef}
             className="chat-message-list flex max-h-[320px] flex-col gap-[9px] overflow-y-auto px-1 font-satoshi text-[12px] leading-normal"

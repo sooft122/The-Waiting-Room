@@ -379,3 +379,30 @@ body {
   height: 0;
   display: none;
 }
+
+/* Chat panel backdrop: fades from transparent at the top to solid at the
+   bottom so it blends into whatever's behind it. On narrow (mobile)
+   viewports the panel covers proportionally more of the screen, so that
+   same transparent band let background content show through right where
+   message text sits, and newly-arrived messages near the top were getting
+   washed out by it — darkened and made to reach solid sooner below 640px. */
+.chat-panel-backdrop {
+  background-image: linear-gradient(to bottom, rgba(12, 13, 16, 0), #0c0d10 55%);
+}
+
+@media (max-width: 639px) {
+  .chat-panel-backdrop {
+    background-image: linear-gradient(to bottom, rgba(12, 13, 16, 0.97), #0c0d10 20%);
+  }
+}
+
+/* Avatar change overlay: revealed via the JS-driven `hovering` state above
+   (mouseenter/mouseleave), which never fires on a touch device — so the
+   button was invisible there, not just unrevealed, with no way to discover
+   it's tappable at all. Kept visible by default whenever the device has no
+   real hover to offer instead. */
+@media (hover: none) {
+  .avatar-change-overlay {
+    opacity: 0.85 !important;
+  }
+}
