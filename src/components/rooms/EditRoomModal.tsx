@@ -1,14 +1,22 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { DragEvent } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ROOM_CATEGORIES } from "@/lib/rooms";
 import type { Room } from "@/lib/rooms";
 import { useStaggerEntrance } from "@/hooks/useStaggerEntrance";
 import { compressImageToDataUrl } from "@/lib/compressImage";
+import { findLikelyDuplicates } from "@/lib/roomDuplicates";
+import type { DuplicateMatch } from "@/lib/roomDuplicates";
 import ModalShell from "./ModalShell";
 import DeleteRoomModal from "./DeleteRoomModal";
+
+// How long to wait after the last keystroke before checking for
+// near-duplicate rooms — avoids re-running the comparison on every
+// character typed.
+const DUPLICATE_CHECK_DEBOUNCE_MS = 350;
 
 // Generous — actual upload size is capped by compressImageToDataUrl
 // downscaling every image before it's stored, not by this raw-file check.
@@ -46,6 +54,36 @@ export default function EditRoomModal({ room, onClose, onSaved }: EditRoomModalP
   const [errors, setErrors] = useState<FormErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [existingRooms, setExistingRooms] = useState<Room[]>([]);
+  const [duplicateMatches, setDuplicateMatches] = useState<DuplicateMatch[]>([]);
+
+  // Fetched once, when the modal opens — this app's room count is small
+  // enough that comparing against the full list client-side is simpler
+  // than adding a dedicated search endpoint for it.
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/rooms")
+      .then((res) => res.json())
+      .then((data) => {
+        if (!cancelled && Array.isArray(data.rooms)) setExistingRooms(data.rooms);
+      })
+      .catch(() => {
+        // Non-fatal — duplicate detection just has nothing to compare against.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Flags likely duplicates as a heads-up, not a block — the creator can
+  // still save either way. Excludes this room itself, since editing it
+  // obviously "matches" its own current name/date.
+  useEffect(() => {
+    const id = setTimeout(() => {
+      setDuplicateMatches(findLikelyDuplicates(name, date || null, existingRooms, room.id));
+    }, DUPLICATE_CHECK_DEBOUNCE_MS);
+    return () => clearTimeout(id);
+  }, [name, date, existingRooms, room.id]);
 
   async function readImageFile(file: File) {
     if (!file.type.startsWith("image/")) {
@@ -226,6 +264,21 @@ export default function EditRoomModal({ room, onClose, onSaved }: EditRoomModalP
             />
             {errors.name ? (
               <p className="font-inter text-[11px] text-red-400">{errors.name}</p>
+            ) : duplicateMatches.length > 0 ? (
+              <div className="flex flex-col gap-1 rounded-[8px] border border-amber-400/30 bg-amber-400/10 px-2.5 py-2">
+                <p className="font-inter text-[11px] text-amber-300">
+                  {duplicateMatches[0].sameDate
+                    ? `This looks like it might be the same event as "${duplicateMatches[0].room.name}" — which ends on the same date.`
+                    : `This looks similar to an existing room: "${duplicateMatches[0].room.name}".`}
+                </p>
+                <Link
+                  href={`/rooms/${duplicateMatches[0].room.id}`}
+                  target="_blank"
+                  className="w-fit font-inter text-[11px] text-amber-200 underline underline-offset-2 hover:text-amber-100"
+                >
+                  View that room →
+                </Link>
+              </div>
             ) : null}
           </div>
 
