@@ -18,6 +18,14 @@ export async function castMoodVote(roomId: string, identity: string, mood: Mood)
   await redis.hset(moodKey(roomId), { [identity]: mood });
 }
 
+/** Removes this identity's mood vote — called when they stop waiting, so
+ * someone no longer in the room doesn't keep counting toward its mood. */
+export async function clearMoodVote(roomId: string, identity: string): Promise<void> {
+  const redis = getRedis();
+  if (!redis) return;
+  await redis.hdel(moodKey(roomId), identity);
+}
+
 export async function getViewerMood(roomId: string, identity: string): Promise<Mood | null> {
   const redis = getRedis();
   if (!redis) return null;

@@ -1,5 +1,7 @@
 import { getRedis } from "./redis";
-import { getMoodBreakdown, type Mood, type MoodBreakdown } from "./roomMood";
+import { clearMoodVote, getMoodBreakdown, type Mood, type MoodBreakdown } from "./roomMood";
+import { clearPresence } from "./roomPresence";
+import { clearChatCount } from "./roomChat";
 
 export const ROOM_CATEGORIES = [
   "Sports",
@@ -173,6 +175,12 @@ export async function joinRoom(identity: string, roomId: string): Promise<void> 
   ]);
 }
 
+/** Leaving takes the identity's Room Energy contributions with it — their
+ * mood vote, check-in history, and chat-count tally are all cleared, not
+ * just their spot in the participant count. Someone no longer waiting
+ * shouldn't keep influencing a room's mood or boosting its energy. Their
+ * chat messages and assigned color stay put — leaving doesn't rewrite the
+ * room's chat history, only the live "currently contributing" signals. */
 export async function leaveRoom(identity: string, roomId: string): Promise<void> {
   const redis = getRedis();
   if (!redis) throw new Error("Room storage is not configured.");
@@ -180,6 +188,9 @@ export async function leaveRoom(identity: string, roomId: string): Promise<void>
   await Promise.all([
     redis.hdel(participantsKey(roomId), identity),
     redis.srem(joinedRoomsKey(identity), roomId),
+    clearMoodVote(roomId, identity),
+    clearPresence(roomId, identity),
+    clearChatCount(roomId, identity),
   ]);
 }
 

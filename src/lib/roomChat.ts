@@ -123,6 +123,17 @@ export async function getCooldownRemainingMs(roomId: string, identity: string): 
   return ttl > 0 ? ttl : 0;
 }
 
+/** Clears this identity's message-count tally — called when they stop
+ * waiting, so their share of Room Energy's chat contribution leaves with
+ * them. Only the count used for that math; their actual messages and
+ * assigned color stay put, since those are the room's chat history, not a
+ * live "currently boosting" signal. */
+export async function clearChatCount(roomId: string, identity: string): Promise<void> {
+  const redis = getRedis();
+  if (!redis) return;
+  await redis.hdel(chatCountKey(roomId), identity);
+}
+
 /** Each identity's total message count in this room — the input to Room
  * Energy's chat contribution (see roomEnergy.ts), capped per person there. */
 export async function getChatCounts(roomId: string): Promise<Record<string, number>> {

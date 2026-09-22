@@ -20,6 +20,19 @@ export async function checkIn(roomId: string, identity: string): Promise<string>
   return now;
 }
 
+/** Clears this identity's check-in history — called when they stop waiting,
+ * so their Room Energy boost leaves with them instead of lingering from
+ * someone no longer in the room, and a later rejoin starts its cooldown
+ * fresh instead of inheriting a stale "still here" timer. */
+export async function clearPresence(roomId: string, identity: string): Promise<void> {
+  const redis = getRedis();
+  if (!redis) return;
+  await Promise.all([
+    redis.hdel(presenceKey(roomId), identity),
+    redis.hdel(checkinCountKey(roomId), identity),
+  ]);
+}
+
 export async function getLastSeen(roomId: string, identity: string): Promise<string | null> {
   const redis = getRedis();
   if (!redis) return null;
