@@ -356,19 +356,21 @@ body {
 /* Chat message list: still scrollable, just without a visible scrollbar
    track, and the content itself fades to nothing at all four edges
    instead of getting cut off hard — softer than a clipped box, and works
-   regardless of whatever's behind the panel. */
+   regardless of whatever's behind the panel. Kept narrow (not the original
+   20px/10px) — new messages land right at the bottom edge, and a wide fade
+   band was washing out the very message you just sent. */
 .chat-message-list {
   scrollbar-width: none;
   -ms-overflow-style: none;
   -webkit-mask-image:
-    linear-gradient(to bottom, transparent, black 20px, black calc(100% - 20px), transparent),
-    linear-gradient(to right, transparent, black 10px, black calc(100% - 10px), transparent);
+    linear-gradient(to bottom, transparent, black 8px, black calc(100% - 8px), transparent),
+    linear-gradient(to right, transparent, black 6px, black calc(100% - 6px), transparent);
   -webkit-mask-composite: source-in;
   -webkit-mask-size: 100% 100%;
   -webkit-mask-repeat: no-repeat;
   mask-image:
-    linear-gradient(to bottom, transparent, black 20px, black calc(100% - 20px), transparent),
-    linear-gradient(to right, transparent, black 10px, black calc(100% - 10px), transparent);
+    linear-gradient(to bottom, transparent, black 8px, black calc(100% - 8px), transparent),
+    linear-gradient(to right, transparent, black 6px, black calc(100% - 6px), transparent);
   mask-composite: intersect;
   mask-size: 100% 100%;
   mask-repeat: no-repeat;
