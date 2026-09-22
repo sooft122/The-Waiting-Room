@@ -6,6 +6,7 @@ import SiteHeader from "@/components/layout/SiteHeader";
 import RoomCard from "@/components/rooms/RoomCard";
 import { useRoomModal } from "@/components/rooms/RoomModalProvider";
 import { useRecentSearches } from "@/hooks/useRecentSearches";
+import { useStaggerEntrance } from "@/hooks/useStaggerEntrance";
 import type { Room } from "@/lib/rooms";
 
 type SearchScreenProps = {
@@ -27,6 +28,9 @@ export default function SearchScreen({
     useRecentSearches();
   const [query, setQuery] = useState(initialQuery ?? "");
   const [submittedQuery, setSubmittedQuery] = useState<string | null>(null);
+
+  const entrance = useStaggerEntrance(40, 45, 8);
+  const emptyStateEntrance = entrance();
 
   // Arriving from a search bar elsewhere (e.g. Discover Rooms) with a query
   // in the URL runs that search immediately instead of showing the empty state.
@@ -64,6 +68,7 @@ export default function SearchScreen({
   const hasSearched = submittedQuery !== null;
   const hasResults = results.length > 0;
   const hasHistory = hydrated && recentSearches.length > 0;
+  const resultEntrances = results.map(() => entrance());
 
   return (
     <div className="relative flex min-h-screen w-full flex-col bg-bg">
@@ -74,21 +79,29 @@ export default function SearchScreen({
       <main className="relative z-10 flex flex-1 flex-col pb-40 pt-[73px]">
         {!hasSearched ? (
           <div className="flex flex-1 flex-col items-center justify-center px-6 text-center">
-            <p className="max-w-[271px] font-satoshi text-[20px] text-white">
+            <p
+              className={`max-w-[271px] font-satoshi text-[20px] text-white ${emptyStateEntrance.className}`}
+              style={emptyStateEntrance.style}
+            >
               You have no trail yet. Try searching for a room.
             </p>
           </div>
         ) : hasResults ? (
           <div className="mx-auto w-full max-w-[1214px] flex-1 px-5 pt-[28px] sm:px-8 lg:px-0">
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {results.map((room) => (
-                <RoomCard key={room.id} room={room} joined={joinedRoomIdSet.has(room.id)} />
+              {results.map((room, i) => (
+                <div key={room.id} className={resultEntrances[i].className} style={resultEntrances[i].style}>
+                  <RoomCard room={room} joined={joinedRoomIdSet.has(room.id)} />
+                </div>
               ))}
             </div>
           </div>
         ) : (
           <div className="flex flex-1 flex-col items-center justify-center gap-5 px-6 text-center">
-            <p className="max-w-[271px] font-satoshi text-[20px] text-white">
+            <p
+              className={`max-w-[271px] font-satoshi text-[20px] text-white ${emptyStateEntrance.className}`}
+              style={emptyStateEntrance.style}
+            >
               Oops, we could not find what you’re look for :(
             </p>
             <button
@@ -117,18 +130,22 @@ export default function SearchScreen({
         style={{ backgroundImage: "linear-gradient(to top, #0c0d10, rgba(12,13,16,0))" }}
       />
 
-      <div className="fixed inset-x-0 bottom-7 z-20 flex flex-col items-center gap-1.5 px-5">
+      {/* pointer-events-none: on short viewports this bar's empty space can
+          overlap earlier page content — without this, that dead space would
+          silently swallow clicks meant for whatever's underneath. The
+          actual controls opt back in with pointer-events-auto. */}
+      <div className="pointer-events-none fixed inset-x-0 bottom-7 z-20 flex flex-col items-center gap-1.5 px-5">
         <form onSubmit={handleSubmit} className="flex w-full max-w-[494px] items-center gap-1">
           <input
             type="text"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="What are you waiting for?"
-            className="h-12 flex-1 rounded-[10px] border border-[rgba(227,221,221,0.4)] bg-[#202021] px-3.5 font-figtree text-[14px] text-white placeholder:text-white/60 focus:outline-none"
+            className="pointer-events-auto h-12 flex-1 rounded-[10px] border border-[rgba(227,221,221,0.4)] bg-[#202021] px-3.5 font-figtree text-[14px] text-white placeholder:text-white/60 focus:outline-none"
           />
           <button
             type="submit"
-            className="relative flex h-12 w-[100px] shrink-0 flex-col items-center justify-center overflow-hidden rounded-[10px] bg-white p-px shadow-[0px_1px_4px_0px_rgba(0,0,0,0.2)]"
+            className="pointer-events-auto relative flex h-12 w-[100px] shrink-0 flex-col items-center justify-center overflow-hidden rounded-[10px] bg-white p-px shadow-[0px_1px_4px_0px_rgba(0,0,0,0.2)]"
           >
             <span className="relative flex size-full items-center justify-center gap-1 overflow-hidden rounded-[9px]">
               <span
@@ -149,7 +166,7 @@ export default function SearchScreen({
         </form>
 
         {hasHistory ? (
-          <div className="flex w-full max-w-[494px] items-center gap-1 rounded-[10px] bg-[#202021] p-1">
+          <div className="pointer-events-auto flex w-full max-w-[494px] items-center gap-1 rounded-[10px] bg-[#202021] p-1">
             <div className="flex flex-1 flex-wrap items-center gap-1">
               {recentSearches.map((entry) => (
                 <div

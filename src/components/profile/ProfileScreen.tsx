@@ -7,6 +7,7 @@ import SiteHeader from "@/components/layout/SiteHeader";
 import RoomCard from "@/components/rooms/RoomCard";
 import GhostButton from "@/components/ui/GhostButton";
 import { useProfileContext } from "@/components/providers/ProfileProvider";
+import { useStaggerEntrance } from "@/hooks/useStaggerEntrance";
 import type { Room } from "@/lib/rooms";
 import ProfileAvatar from "./ProfileAvatar";
 import EditProfileNameModal from "./EditProfileNameModal";
@@ -64,6 +65,11 @@ export default function ProfileScreen({ rooms, anonId }: ProfileScreenProps) {
   const [activeTab, setActiveTab] = useState<"active" | "ended">("active");
   const [editOpen, setEditOpen] = useState(false);
 
+  const entrance = useStaggerEntrance(70, 45, 8);
+  const titleEntrance = entrance();
+  const headerEntrance = entrance();
+  const tabsEntrance = entrance();
+
   const activeRooms = useMemo(
     () => rooms.filter((room) => new Date(room.date).getTime() > Date.now()),
     [rooms],
@@ -73,6 +79,7 @@ export default function ProfileScreen({ rooms, anonId }: ProfileScreenProps) {
     [rooms],
   );
   const visibleRooms = activeTab === "active" ? activeRooms : endedRooms;
+  const cardEntrances = visibleRooms.map(() => entrance());
 
   async function handleHeaderAvatarChange(dataUrl: string) {
     try {
@@ -96,11 +103,19 @@ export default function ProfileScreen({ rooms, anonId }: ProfileScreenProps) {
       {/* pt compensates for the nav bar now being fixed (out of normal
           flow) instead of pushing this content down itself. */}
       <main className="relative z-10 mx-auto flex w-full max-w-[1214px] flex-col gap-8 px-5 pb-24 pt-[104px] sm:px-8 sm:pt-[112px] lg:px-0 lg:pt-[125px]">
-        <h1 className="font-satoshi text-[24px] leading-[1.08] text-white">My Profile</h1>
+        <h1
+          className={`font-satoshi text-[24px] leading-[1.08] text-white ${titleEntrance.className}`}
+          style={titleEntrance.style}
+        >
+          My Profile
+        </h1>
 
         {data ? (
           <>
-            <div className="flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-center">
+            <div
+              className={`flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-center ${headerEntrance.className}`}
+              style={headerEntrance.style}
+            >
               <div className="flex items-center gap-[11px]">
                 <ProfileAvatar
                   src={data.effectiveAvatarUrl}
@@ -137,7 +152,7 @@ export default function ProfileScreen({ rooms, anonId }: ProfileScreenProps) {
               </div>
             </div>
 
-            <div className="flex items-center gap-[7px]">
+            <div className={`flex items-center gap-[7px] ${tabsEntrance.className}`} style={tabsEntrance.style}>
               <TabButton active={activeTab === "active"} onClick={() => setActiveTab("active")}>
                 Active Rooms
               </TabButton>
@@ -148,8 +163,10 @@ export default function ProfileScreen({ rooms, anonId }: ProfileScreenProps) {
 
             {visibleRooms.length > 0 ? (
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-                {visibleRooms.map((room) => (
-                  <RoomCard key={room.id} room={room} joined />
+                {visibleRooms.map((room, i) => (
+                  <div key={room.id} className={cardEntrances[i].className} style={cardEntrances[i].style}>
+                    <RoomCard room={room} joined />
+                  </div>
                 ))}
               </div>
             ) : (

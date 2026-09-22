@@ -68,7 +68,11 @@ export default function TrendingCarousel({ rooms }: TrendingCarouselProps) {
         }}
       />
 
-      <div className="absolute inset-x-5 bottom-8 flex flex-col items-start gap-3 sm:inset-x-[50px] sm:bottom-[50px] sm:flex-row sm:items-end sm:justify-between sm:gap-4">
+      {/* bottom-16 (not -8) on mobile: at the page's natural scroll
+          position, the fixed Discover/Search bar's top edge lands right
+          around here on common phone viewport heights — the extra
+          clearance keeps the Join Room button from sitting partly under it. */}
+      <div className="absolute inset-x-5 bottom-16 flex flex-col items-start gap-3 sm:inset-x-[50px] sm:bottom-[50px] sm:flex-row sm:items-end sm:justify-between sm:gap-4">
         <div className="flex min-w-0 flex-col gap-1 font-satoshi text-white">
           <p className="text-[14px]">🔥 Trending</p>
           <p className="max-w-full truncate text-[20px] sm:max-w-[50vw] sm:text-[26px]">{room.name}</p>

@@ -8,6 +8,7 @@ import { useSession } from "next-auth/react";
 import SiteHeader from "@/components/layout/SiteHeader";
 import { ROOM_CATEGORIES } from "@/lib/rooms";
 import type { Room } from "@/lib/rooms";
+import { useStaggerEntrance } from "@/hooks/useStaggerEntrance";
 import CategoryFilterPills from "./CategoryFilterPills";
 import DiscoverBottomBar from "./DiscoverBottomBar";
 import RoomCard from "./RoomCard";
@@ -34,6 +35,10 @@ export default function RoomSectionAllScreen({
   const joinedRoomIdSet = useMemo(() => new Set(joinedRoomIds), [joinedRoomIds]);
   const router = useRouter();
   const { data: session } = useSession();
+
+  const entrance = useStaggerEntrance(70, 45, 8);
+  const breadcrumbEntrance = entrance();
+  const headerEntrance = entrance();
 
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("All");
   const [viewMode, setViewMode] = useState<ViewMode>("discover");
@@ -76,6 +81,8 @@ export default function RoomSectionAllScreen({
     router.push(trimmed ? `/search?q=${encodeURIComponent(trimmed)}` : "/search");
   }
 
+  const cardEntrances = filteredRooms.map(() => entrance());
+
   return (
     <div className="relative min-h-screen w-full bg-bg">
       <SiteHeader anonId={anonId} />
@@ -83,7 +90,10 @@ export default function RoomSectionAllScreen({
       {/* pt compensates for the nav bar now being fixed (out of normal
           flow) instead of pushing this content down itself. */}
       <main className="relative z-10 mx-auto flex w-full max-w-[1214px] flex-col gap-7 px-5 pb-48 pt-[104px] sm:px-8 sm:pt-[112px] lg:px-0 lg:pt-[125px]">
-        <div className="flex items-center gap-0.5">
+        <div
+          className={`flex items-center gap-0.5 ${breadcrumbEntrance.className}`}
+          style={breadcrumbEntrance.style}
+        >
           <Link
             href="/rooms"
             className="font-satoshi text-[14px] text-[#d0d0d0] opacity-65 transition-opacity hover:opacity-100"
@@ -95,7 +105,7 @@ export default function RoomSectionAllScreen({
           <span className="font-satoshi text-[14px] text-white">{title}</span>
         </div>
 
-        <div className="flex flex-col gap-3">
+        <div className={`flex flex-col gap-3 ${headerEntrance.className}`} style={headerEntrance.style}>
           <h1 className="font-satoshi text-[24px] leading-[1.08] text-white">{title}</h1>
           <CategoryFilterPills
             categories={CATEGORY_FILTERS}
@@ -107,8 +117,10 @@ export default function RoomSectionAllScreen({
 
         {filteredRooms.length > 0 ? (
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-            {filteredRooms.map((room) => (
-              <RoomCard key={room.id} room={room} joined={joinedRoomIdSet.has(room.id)} />
+            {filteredRooms.map((room, i) => (
+              <div key={room.id} className={cardEntrances[i].className} style={cardEntrances[i].style}>
+                <RoomCard room={room} joined={joinedRoomIdSet.has(room.id)} />
+              </div>
             ))}
           </div>
         ) : (

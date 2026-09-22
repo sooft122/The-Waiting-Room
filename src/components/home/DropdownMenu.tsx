@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { signIn, signOut, useSession } from "next-auth/react";
 import PrimaryButton from "../ui/PrimaryButton";
 import GhostButton from "../ui/GhostButton";
 import { useRoomModal } from "../rooms/RoomModalProvider";
 import { useProfileContext } from "@/components/providers/ProfileProvider";
+import { useStaggerEntrance } from "@/hooks/useStaggerEntrance";
 
 const NAV_ITEMS = [
   { label: "HOME", href: "/", icon: "/icons/home-02.svg" },
@@ -18,14 +18,6 @@ const NAV_ITEMS = [
 // Base delay lets the panel shell (animate-dropdown-in, 160ms) settle first.
 const STAGGER_BASE_MS = 70;
 const STAGGER_STEP_MS = 35;
-
-// Transition (not a `fill: both` @keyframes animation) so that once it
-// settles, opacity is governed by ordinary CSS rules again — including the
-// nav's hover-hierarchy dimming below. A completed fill-mode animation
-// otherwise keeps "winning" the cascade over plain hover rules forever.
-const ENTRANCE_BASE = "transition-[opacity,transform] duration-300 ease-out";
-const ENTRANCE_HIDDEN = "opacity-0 translate-y-1.5";
-const ENTRANCE_SHOWN = "opacity-100 translate-y-0";
 
 type DropdownMenuProps = {
   className?: string;
@@ -52,16 +44,10 @@ export default function DropdownMenu({
   const fallbackName = isSignedIn ? session?.user?.name ?? anonName : anonName;
   const displayName = profile?.effectiveName ?? fallbackName;
 
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    const id = requestAnimationFrame(() => setMounted(true));
-    return () => cancelAnimationFrame(id);
-  }, []);
-
-  let staggerIndex = 0;
-  const nextDelay = () => `${STAGGER_BASE_MS + staggerIndex++ * STAGGER_STEP_MS}ms`;
-  const entrance = () => `${ENTRANCE_BASE} ${mounted ? ENTRANCE_SHOWN : ENTRANCE_HIDDEN}`;
+  const entrance = useStaggerEntrance(STAGGER_BASE_MS, STAGGER_STEP_MS);
+  const profileEntrance = entrance();
+  const navItemEntrances = NAV_ITEMS.map(() => entrance());
+  const actionsEntrance = entrance();
 
   return (
     <div
@@ -75,8 +61,8 @@ export default function DropdownMenu({
         href="/profile"
         onClick={onNavigate}
         role="menuitem"
-        className={`flex items-center justify-between gap-4 px-5 pb-4 pt-5 ${entrance()}`}
-        style={{ transitionDelay: nextDelay() }}
+        className={`flex items-center justify-between gap-4 px-5 pb-4 pt-5 ${profileEntrance.className}`}
+        style={profileEntrance.style}
       >
         <span className="flex min-w-0 flex-1 items-center gap-1.5">
           <span className="relative size-7 shrink-0 overflow-hidden rounded-full bg-[#232323]">
@@ -110,14 +96,14 @@ export default function DropdownMenu({
       <div className="h-px w-full bg-[rgba(255,255,255,0.08)]" />
 
       <nav className="nav-hierarchy flex flex-col gap-3 px-5 py-[18px]">
-        {NAV_ITEMS.map((item) => (
+        {NAV_ITEMS.map((item, i) => (
           <Link
             key={item.label}
             href={item.href}
             onClick={onNavigate}
             role="menuitem"
-            className={`flex items-center justify-between text-white ${entrance()}`}
-            style={{ transitionDelay: nextDelay() }}
+            className={`flex items-center justify-between text-white ${navItemEntrances[i].className}`}
+            style={navItemEntrances[i].style}
           >
             <span className="font-satoshi text-[20px]">{item.label}</span>
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -128,7 +114,7 @@ export default function DropdownMenu({
 
       <div className="h-px w-full bg-[rgba(255,255,255,0.08)]" />
 
-      <div className={`flex flex-col gap-1.5 px-5 py-5 ${entrance()}`} style={{ transitionDelay: nextDelay() }}>
+      <div className={`flex flex-col gap-1.5 px-5 py-5 ${actionsEntrance.className}`} style={actionsEntrance.style}>
         <PrimaryButton
           onClick={() => {
             onNavigate?.();

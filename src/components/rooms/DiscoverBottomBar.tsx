@@ -27,13 +27,18 @@ export default function DiscoverBottomBar({
         style={{ backgroundImage: "linear-gradient(to top, #0c0d10, rgba(12,13,16,0))" }}
       />
 
-      <div className="fixed inset-x-0 bottom-7 z-20 flex flex-col items-center gap-5 px-5">
+      {/* pointer-events-none on this whole fixed bar: on short viewports its
+          empty space can overlap earlier-in-page content (e.g. the trending
+          carousel's Join Room button), and without this that dead space
+          would silently swallow clicks meant for whatever's underneath.
+          Each actual control opts back in with pointer-events-auto. */}
+      <div className="pointer-events-none fixed inset-x-0 bottom-7 z-20 flex flex-col items-center gap-5 px-5">
         <div className="flex w-full max-w-[494px] flex-col items-center gap-5">
           <div className="flex items-center gap-[7px]">
             <button
               type="button"
               onClick={() => onViewModeChange("discover")}
-              className="rounded-[30px] px-3.5 py-2.5 font-satoshi text-[14px] transition-colors"
+              className="pointer-events-auto rounded-[30px] px-3.5 py-2.5 font-satoshi text-[14px] transition-colors"
               style={
                 viewMode === "discover"
                   ? { backgroundImage: "linear-gradient(180deg, #a8a8a8, #d3d3d3)", color: "#000" }
@@ -45,7 +50,7 @@ export default function DiscoverBottomBar({
             <button
               type="button"
               onClick={() => onViewModeChange("mine")}
-              className="rounded-[30px] px-3.5 py-2.5 font-satoshi text-[14px] transition-colors"
+              className="pointer-events-auto rounded-[30px] px-3.5 py-2.5 font-satoshi text-[14px] transition-colors"
               style={
                 viewMode === "mine"
                   ? { backgroundImage: "linear-gradient(180deg, #a8a8a8, #d3d3d3)", color: "#000" }
@@ -62,11 +67,11 @@ export default function DiscoverBottomBar({
               value={searchQuery}
               onChange={(event) => onSearchQueryChange(event.target.value)}
               placeholder="Search For Rooms..."
-              className="h-12 flex-1 rounded-[10px] border border-[rgba(227,221,221,0.4)] bg-[#202021] px-3.5 font-figtree text-[14px] text-white placeholder:text-white/60 focus:outline-none"
+              className="pointer-events-auto h-12 flex-1 rounded-[10px] border border-[rgba(227,221,221,0.4)] bg-[#202021] px-3.5 font-figtree text-[14px] text-white placeholder:text-white/60 focus:outline-none"
             />
             <button
               type="submit"
-              className="relative flex h-12 w-[100px] shrink-0 flex-col items-center justify-center overflow-hidden rounded-[10px] bg-white p-px shadow-[0px_1px_4px_0px_rgba(0,0,0,0.2)]"
+              className="pointer-events-auto relative flex h-12 w-[100px] shrink-0 flex-col items-center justify-center overflow-hidden rounded-[10px] bg-white p-px shadow-[0px_1px_4px_0px_rgba(0,0,0,0.2)]"
             >
               <span className="relative flex size-full items-center justify-center gap-1 overflow-hidden rounded-[9px]">
                 <span

@@ -2,7 +2,7 @@ export default function RoomEnergyBar({ energy }: { energy: number }) {
   const clamped = Math.max(0, Math.min(100, energy));
 
   return (
-    <div className="flex w-[159px] flex-col gap-[10px]">
+    <div className="flex w-[161px] flex-col gap-[10px]">
       <div className="flex items-center gap-[6px]">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img alt="" className="size-[18px]" src="/icons/flash.svg" />

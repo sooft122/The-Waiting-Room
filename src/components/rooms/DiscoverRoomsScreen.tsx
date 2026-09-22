@@ -8,6 +8,7 @@ import SiteHeader from "@/components/layout/SiteHeader";
 import { ROOM_CATEGORIES } from "@/lib/rooms";
 import type { Room } from "@/lib/rooms";
 import { getSectionRooms } from "@/lib/roomSections";
+import { useStaggerEntrance } from "@/hooks/useStaggerEntrance";
 import { useRoomModal } from "./RoomModalProvider";
 import TrendingCarousel from "./TrendingCarousel";
 import RoomSectionRow from "./RoomSectionRow";
@@ -33,6 +34,10 @@ export default function DiscoverRoomsScreen({
   const router = useRouter();
   const { openCreateRoom } = useRoomModal();
   const { data: session } = useSession();
+
+  const entrance = useStaggerEntrance();
+  const headerEntrance = entrance();
+  const carouselEntrance = entrance();
 
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("All");
   const [viewMode, setViewMode] = useState<ViewMode>("discover");
@@ -97,7 +102,7 @@ export default function DiscoverRoomsScreen({
       {/* pt compensates for the nav bar now being fixed (out of normal
           flow) instead of pushing this content down itself. */}
       <main className="relative z-10 mx-auto flex w-full max-w-[1214px] flex-col gap-10 px-5 pb-48 pt-[104px] sm:px-8 sm:pt-[112px] lg:px-0 lg:pt-[125px]">
-        <div className="flex flex-col gap-3">
+        <div className={`flex flex-col gap-3 ${headerEntrance.className}`} style={headerEntrance.style}>
           <h1 className="font-satoshi text-[24px] leading-[1.08] text-white">
             {viewMode === "discover" ? "Discover Rooms" : "Rooms I Created"}
           </h1>
@@ -110,7 +115,9 @@ export default function DiscoverRoomsScreen({
         </div>
 
         {viewMode === "discover" && categoryFilter === "All" ? (
-          <TrendingCarousel rooms={carouselRooms} />
+          <div className={carouselEntrance.className} style={carouselEntrance.style}>
+            <TrendingCarousel rooms={carouselRooms} />
+          </div>
         ) : null}
 
         <div className="flex flex-col gap-10">

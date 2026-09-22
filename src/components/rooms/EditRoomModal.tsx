@@ -5,6 +5,7 @@ import type { DragEvent } from "react";
 import { useRouter } from "next/navigation";
 import { ROOM_CATEGORIES } from "@/lib/rooms";
 import type { Room } from "@/lib/rooms";
+import { useStaggerEntrance } from "@/hooks/useStaggerEntrance";
 import { compressImageToDataUrl } from "@/lib/compressImage";
 import ModalShell from "./ModalShell";
 import DeleteRoomModal from "./DeleteRoomModal";
@@ -29,6 +30,13 @@ type EditRoomModalProps = {
 export default function EditRoomModal({ room, onClose, onSaved }: EditRoomModalProps) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const entrance = useStaggerEntrance();
+  const titleEntrance = entrance();
+  const uploadEntrance = entrance();
+  const nameEntrance = entrance();
+  const dateEntrance = entrance();
+  const categoryEntrance = entrance();
+  const actionsEntrance = entrance();
 
   const [imagePreview, setImagePreview] = useState<string | null>(room.imageUrl);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
@@ -124,12 +132,16 @@ export default function EditRoomModal({ room, onClose, onSaved }: EditRoomModalP
       </button>
 
       <form onSubmit={handleSubmit} className="flex flex-col items-start gap-5">
-        <h2 id="edit-room-title" className="font-satoshi text-[18px] text-white">
+        <h2
+          id="edit-room-title"
+          className={`font-satoshi text-[18px] text-white ${titleEntrance.className}`}
+          style={titleEntrance.style}
+        >
           Edit Room
         </h2>
 
         <div className="flex w-full flex-col gap-3.5">
-          <div>
+          <div className={uploadEntrance.className} style={uploadEntrance.style}>
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
@@ -199,7 +211,7 @@ export default function EditRoomModal({ room, onClose, onSaved }: EditRoomModalP
             ) : null}
           </div>
 
-          <div className="flex w-full flex-col gap-1.5">
+          <div className={`flex w-full flex-col gap-1.5 ${nameEntrance.className}`} style={nameEntrance.style}>
             <label htmlFor="edit-room-name" className="font-satoshi text-[12px] text-white">
               Room Name
             </label>
@@ -217,7 +229,7 @@ export default function EditRoomModal({ room, onClose, onSaved }: EditRoomModalP
             ) : null}
           </div>
 
-          <div className="flex w-full flex-col gap-1.5">
+          <div className={`flex w-full flex-col gap-1.5 ${dateEntrance.className}`} style={dateEntrance.style}>
             <label htmlFor="edit-room-date" className="font-satoshi text-[12px] text-white">
               Date
             </label>
@@ -243,7 +255,10 @@ export default function EditRoomModal({ room, onClose, onSaved }: EditRoomModalP
             ) : null}
           </div>
 
-          <div className="flex w-full flex-col gap-1.5">
+          <div
+            className={`flex w-full flex-col gap-1.5 ${categoryEntrance.className}`}
+            style={categoryEntrance.style}
+          >
             <label htmlFor="edit-room-category" className="font-satoshi text-[12px] text-white">
               Category
             </label>
@@ -278,7 +293,10 @@ export default function EditRoomModal({ room, onClose, onSaved }: EditRoomModalP
           <p className="w-full font-inter text-[12px] text-red-400">{errors.form}</p>
         ) : null}
 
-        <div className="flex w-full flex-col items-stretch gap-2 sm:flex-row sm:gap-[4px]">
+        <div
+          className={`flex w-full flex-col items-stretch gap-2 sm:flex-row sm:gap-[4px] ${actionsEntrance.className}`}
+          style={actionsEntrance.style}
+        >
           <button
             type="button"
             onClick={() => setConfirmingDelete(true)}

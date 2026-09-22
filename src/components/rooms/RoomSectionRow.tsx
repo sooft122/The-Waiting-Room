@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import type { Room } from "@/lib/rooms";
 import type { RoomSectionSlug } from "@/lib/roomSections";
+import { useStaggerEntrance } from "@/hooks/useStaggerEntrance";
 import RoomCard from "./RoomCard";
 
 type RoomSectionRowProps = {
@@ -30,9 +31,16 @@ export default function RoomSectionRow({
   const canExpand = rooms.length > 4;
   const visibleRooms = !slug && expanded ? rooms : rooms.slice(0, 4);
 
+  // Capped at 8 steps so a long row still finishes settling quickly —
+  // cards past the cap fade in alongside the last staggered one instead of
+  // visibly trickling in one-by-one.
+  const entrance = useStaggerEntrance(60, 45, 8);
+  const headerEntrance = entrance();
+  const cardEntrances = visibleRooms.map(() => entrance());
+
   return (
     <section className="w-full">
-      <div className="flex items-center justify-between">
+      <div className={`flex items-center justify-between ${headerEntrance.className}`} style={headerEntrance.style}>
         <h2 className="font-satoshi text-[16px] text-white">{title}</h2>
         {canExpand ? (
           slug ? (
@@ -65,8 +73,10 @@ export default function RoomSectionRow({
       <div className="mt-3.5">
         {visibleRooms.length > 0 ? (
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-            {visibleRooms.map((room) => (
-              <RoomCard key={room.id} room={room} joined={joinedRoomIds?.has(room.id) ?? false} />
+            {visibleRooms.map((room, i) => (
+              <div key={room.id} className={cardEntrances[i].className} style={cardEntrances[i].style}>
+                <RoomCard room={room} joined={joinedRoomIds?.has(room.id) ?? false} />
+              </div>
             ))}
           </div>
         ) : (

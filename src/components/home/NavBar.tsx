@@ -1,6 +1,9 @@
+"use client";
+
 import Link from "next/link";
 import MenuIcon from "./MenuIcon";
 import DropdownMenu from "./DropdownMenu";
+import { useStaggerEntrance } from "@/hooks/useStaggerEntrance";
 
 type NavBarProps = {
   isMenuOpen: boolean;
@@ -10,9 +13,15 @@ type NavBarProps = {
 };
 
 export default function NavBar({ isMenuOpen, onToggleMenu, onNavigate, anonId }: NavBarProps) {
+  // Quick, minimal delay — the nav is chrome present on every page, not
+  // page content, so it should feel like it's already there, just barely
+  // settling in, rather than visibly lagging behind the rest of the page.
+  const entrance = useStaggerEntrance(0, 0);
+  const navEntrance = entrance();
+
   return (
     <div className="fixed inset-x-0 top-0 z-30 mx-auto w-full max-w-[1214px] px-5 pt-6 sm:px-8 sm:pt-8 lg:px-0 lg:pt-[33px]">
-      <div className="flex items-center justify-between">
+      <div className={`flex items-center justify-between ${navEntrance.className}`} style={navEntrance.style}>
         {/* Same coated-badge treatment as the menu button — the logo mark's
             own negative space (the gaps within its silhouette) would
             otherwise let whatever's behind the nav show through it. */}
