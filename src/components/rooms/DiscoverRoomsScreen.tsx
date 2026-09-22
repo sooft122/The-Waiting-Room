@@ -7,9 +7,12 @@ import { useSession } from "next-auth/react";
 import SiteHeader from "@/components/layout/SiteHeader";
 import { ROOM_CATEGORIES } from "@/lib/rooms";
 import type { Room } from "@/lib/rooms";
+import { getSectionRooms } from "@/lib/roomSections";
 import { useRoomModal } from "./RoomModalProvider";
 import TrendingCarousel from "./TrendingCarousel";
 import RoomSectionRow from "./RoomSectionRow";
+import CategoryFilterPills from "./CategoryFilterPills";
+import DiscoverBottomBar from "./DiscoverBottomBar";
 
 const CATEGORY_FILTERS = ["All", ...ROOM_CATEGORIES] as const;
 type CategoryFilter = (typeof CATEGORY_FILTERS)[number];
@@ -74,8 +77,8 @@ export default function DiscoverRoomsScreen({
   // "Starting Soon" and "Mostly Crowded" need signals we don't track yet
   // (a soon-to-start window, and live participant counts) — deliberately
   // left empty for now rather than faked.
-  const startingSoonRooms: Room[] = [];
-  const mostlyCrowdedRooms: Room[] = [];
+  const startingSoonRooms = useMemo(() => getSectionRooms(rooms, "starting-soon"), [rooms]);
+  const mostlyCrowdedRooms = useMemo(() => getSectionRooms(rooms, "mostly-crowded"), [rooms]);
 
   function handleSearchSubmit(event: FormEvent) {
     event.preventDefault();
@@ -98,28 +101,12 @@ export default function DiscoverRoomsScreen({
           <h1 className="font-satoshi text-[24px] leading-[1.08] text-white">
             {viewMode === "discover" ? "Discover Rooms" : "Rooms I Created"}
           </h1>
-          <div className="flex flex-wrap items-center gap-[7px]">
-            {CATEGORY_FILTERS.map((filter) => {
-              const isActive = filter === categoryFilter;
-              return (
-                <button
-                  key={filter}
-                  type="button"
-                  onClick={() => setCategoryFilter(filter)}
-                  className={`shrink-0 whitespace-nowrap rounded-[17px] px-3 py-1.5 font-satoshi text-[14px] transition-colors ${
-                    isActive ? "text-black" : "bg-[#1d1d1d] text-[#d0d0d0] hover:bg-[#262626]"
-                  }`}
-                  style={
-                    isActive
-                      ? { backgroundImage: "linear-gradient(180deg, #a8a8a8, #d3d3d3)" }
-                      : undefined
-                  }
-                >
-                  {filter} ({categoryCounts[filter]})
-                </button>
-              );
-            })}
-          </div>
+          <CategoryFilterPills
+            categories={CATEGORY_FILTERS}
+            counts={categoryCounts}
+            active={categoryFilter}
+            onChange={(filter) => setCategoryFilter(filter as CategoryFilter)}
+          />
         </div>
 
         {viewMode === "discover" && categoryFilter === "All" ? (
@@ -129,6 +116,7 @@ export default function DiscoverRoomsScreen({
         <div className="flex flex-col gap-10">
           <RoomSectionRow
             title="Recently Created"
+            slug="recently-created"
             rooms={filteredRooms}
             emptyMessage={
               viewMode === "mine"
@@ -139,11 +127,13 @@ export default function DiscoverRoomsScreen({
           />
           <RoomSectionRow
             title="Starting Soon"
+            slug="starting-soon"
             rooms={startingSoonRooms}
             emptyMessage="Nothing starting soon yet."
           />
           <RoomSectionRow
             title="Mostly Crowded"
+            slug="mostly-crowded"
             rooms={mostlyCrowdedRooms}
             emptyMessage="Nothing crowded yet."
           />
@@ -174,72 +164,13 @@ export default function DiscoverRoomsScreen({
         ) : null}
       </main>
 
-      <div
-        aria-hidden
-        className="pointer-events-none fixed inset-x-0 bottom-0 z-20 h-[206px]"
-        style={{ backgroundImage: "linear-gradient(to top, #0c0d10, rgba(12,13,16,0))" }}
+      <DiscoverBottomBar
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        searchQuery={searchQuery}
+        onSearchQueryChange={setSearchQuery}
+        onSearchSubmit={handleSearchSubmit}
       />
-
-      <div className="fixed inset-x-0 bottom-7 z-20 flex flex-col items-center gap-5 px-5">
-        <div className="flex w-full max-w-[494px] flex-col items-center gap-5">
-          <div className="flex items-center gap-[7px]">
-            <button
-              type="button"
-              onClick={() => setViewMode("discover")}
-              className="rounded-[30px] px-3.5 py-2.5 font-satoshi text-[14px] transition-colors"
-              style={
-                viewMode === "discover"
-                  ? { backgroundImage: "linear-gradient(180deg, #a8a8a8, #d3d3d3)", color: "#000" }
-                  : { backgroundColor: "#1d1d1d", color: "#d0d0d0" }
-              }
-            >
-              Discover
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("mine")}
-              className="rounded-[30px] px-3.5 py-2.5 font-satoshi text-[14px] transition-colors"
-              style={
-                viewMode === "mine"
-                  ? { backgroundImage: "linear-gradient(180deg, #a8a8a8, #d3d3d3)", color: "#000" }
-                  : { backgroundColor: "#1d1d1d", color: "#d0d0d0" }
-              }
-            >
-              Rooms i Created
-            </button>
-          </div>
-
-          <form onSubmit={handleSearchSubmit} className="flex w-full items-center gap-1">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Search For Rooms..."
-              className="h-12 flex-1 rounded-[10px] border border-[rgba(227,221,221,0.4)] bg-[#202021] px-3.5 font-figtree text-[14px] text-white placeholder:text-white/60 focus:outline-none"
-            />
-            <button
-              type="submit"
-              className="relative flex h-12 w-[100px] shrink-0 flex-col items-center justify-center overflow-hidden rounded-[10px] bg-white p-px shadow-[0px_1px_4px_0px_rgba(0,0,0,0.2)]"
-            >
-              <span className="relative flex size-full items-center justify-center gap-1 overflow-hidden rounded-[9px]">
-                <span
-                  aria-hidden
-                  className="absolute inset-0 rounded-[9px]"
-                  style={{
-                    backgroundImage:
-                      "linear-gradient(181.39deg, rgb(228,221,221) 19.37%, rgb(220,220,220) 40.857%, rgb(216,213,213) 65.087%, rgb(209,209,209) 97.546%)",
-                  }}
-                />
-                <span className="relative font-figtree text-[14px] font-medium text-black">
-                  Search
-                </span>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img alt="" className="relative size-4" src="/icons/search-solid.svg" />
-              </span>
-            </button>
-          </form>
-        </div>
-      </div>
     </div>
   );
 }

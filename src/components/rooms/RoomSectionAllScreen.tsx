@@ -1,0 +1,130 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import type { FormEvent } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
+import SiteHeader from "@/components/layout/SiteHeader";
+import { ROOM_CATEGORIES } from "@/lib/rooms";
+import type { Room } from "@/lib/rooms";
+import CategoryFilterPills from "./CategoryFilterPills";
+import DiscoverBottomBar from "./DiscoverBottomBar";
+import RoomCard from "./RoomCard";
+
+const CATEGORY_FILTERS = ["All", ...ROOM_CATEGORIES] as const;
+type CategoryFilter = (typeof CATEGORY_FILTERS)[number];
+type ViewMode = "discover" | "mine";
+
+type RoomSectionAllScreenProps = {
+  title: string;
+  rooms: Room[];
+  emptyMessage: string;
+  anonId: string | null;
+  joinedRoomIds: string[];
+};
+
+export default function RoomSectionAllScreen({
+  title,
+  rooms,
+  emptyMessage,
+  anonId,
+  joinedRoomIds,
+}: RoomSectionAllScreenProps) {
+  const joinedRoomIdSet = useMemo(() => new Set(joinedRoomIds), [joinedRoomIds]);
+  const router = useRouter();
+  const { data: session } = useSession();
+
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("All");
+  const [viewMode, setViewMode] = useState<ViewMode>("discover");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const myIdentity = session?.user?.email ?? (anonId ? `anon:${anonId}` : null);
+
+  const scopedRooms = useMemo(() => {
+    if (viewMode === "discover") return rooms;
+    if (!myIdentity) return [];
+    return rooms.filter((room) => room.createdBy === myIdentity);
+  }, [rooms, viewMode, myIdentity]);
+
+  const categoryCounts = useMemo(() => {
+    const counts: Record<CategoryFilter, number> = {
+      All: scopedRooms.length,
+      Sports: 0,
+      Entertainment: 0,
+      Gaming: 0,
+      Technology: 0,
+      Culture: 0,
+      Events: 0,
+      Other: 0,
+    };
+    for (const room of scopedRooms) counts[room.category] += 1;
+    return counts;
+  }, [scopedRooms]);
+
+  const filteredRooms = useMemo(
+    () =>
+      categoryFilter === "All"
+        ? scopedRooms
+        : scopedRooms.filter((room) => room.category === categoryFilter),
+    [scopedRooms, categoryFilter],
+  );
+
+  function handleSearchSubmit(event: FormEvent) {
+    event.preventDefault();
+    const trimmed = searchQuery.trim();
+    router.push(trimmed ? `/search?q=${encodeURIComponent(trimmed)}` : "/search");
+  }
+
+  return (
+    <div className="relative min-h-screen w-full bg-bg">
+      <SiteHeader anonId={anonId} />
+
+      {/* pt compensates for the nav bar now being fixed (out of normal
+          flow) instead of pushing this content down itself. */}
+      <main className="relative z-10 mx-auto flex w-full max-w-[1214px] flex-col gap-7 px-5 pb-48 pt-[104px] sm:px-8 sm:pt-[112px] lg:px-0 lg:pt-[125px]">
+        <div className="flex items-center gap-0.5">
+          <Link
+            href="/rooms"
+            className="font-satoshi text-[14px] text-[#d0d0d0] opacity-65 transition-opacity hover:opacity-100"
+          >
+            Discover Rooms
+          </Link>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img alt="" className="size-5" src="/icons/arrow-right-01.svg" />
+          <span className="font-satoshi text-[14px] text-white">{title}</span>
+        </div>
+
+        <div className="flex flex-col gap-3">
+          <h1 className="font-satoshi text-[24px] leading-[1.08] text-white">{title}</h1>
+          <CategoryFilterPills
+            categories={CATEGORY_FILTERS}
+            counts={categoryCounts}
+            active={categoryFilter}
+            onChange={(category) => setCategoryFilter(category as CategoryFilter)}
+          />
+        </div>
+
+        {filteredRooms.length > 0 ? (
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+            {filteredRooms.map((room) => (
+              <RoomCard key={room.id} room={room} joined={joinedRoomIdSet.has(room.id)} />
+            ))}
+          </div>
+        ) : (
+          <div className="flex h-[200px] items-center justify-center rounded-[20px] bg-white/[0.02] px-6 text-center">
+            <p className="font-inter text-[13px] text-white/40">{emptyMessage}</p>
+          </div>
+        )}
+      </main>
+
+      <DiscoverBottomBar
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        searchQuery={searchQuery}
+        onSearchQueryChange={setSearchQuery}
+        onSearchSubmit={handleSearchSubmit}
+      />
+    </div>
+  );
+}

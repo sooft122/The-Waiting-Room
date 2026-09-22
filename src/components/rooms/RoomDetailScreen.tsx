@@ -115,8 +115,14 @@ export default function RoomDetailScreen({
       <div className="relative">
         {/* Large Media Frame — capped to a portion of the viewport height
             (not a full-bleed aspect ratio) so it never dominates the whole
-            screen regardless of image shape or window size. */}
-        <div className="relative min-h-[90vh] w-full overflow-hidden bg-black sm:h-[90vh]">
+            screen regardless of image shape or window size. The ended state
+            fills the full viewport instead — it's a summary screen on its
+            own, not a photo backdrop for live content sitting below it. */}
+        <div
+          className={`relative w-full overflow-hidden bg-black ${
+            hasEnded ? "min-h-screen sm:h-screen" : "h-[90vh]"
+          }`}
+        >
           {/* Image fills the entire hero edge-to-edge (object-cover, full bleed).
               Only the CONTENT below (text, buttons, energy bar) is aligned to
               the nav's own width — the photo itself is never inset. */}
