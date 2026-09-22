@@ -74,6 +74,15 @@ export function isRoomActive(room: Room): boolean {
   return new Date(room.date).getTime() > Date.now();
 }
 
+const STARTING_SOON_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+/** Whether a room is still active but its countdown has less than 24 hours
+ * left — the event it's counting down to is about to happen. */
+export function isRoomStartingSoon(room: Room): boolean {
+  const msRemaining = new Date(room.date).getTime() - Date.now();
+  return msRemaining > 0 && msRemaining <= STARTING_SOON_WINDOW_MS;
+}
+
 async function getParticipantCount(roomId: string): Promise<number> {
   const redis = getRedis();
   if (!redis) return 0;

@@ -1,4 +1,4 @@
-import { isRoomActive } from "./rooms";
+import { isRoomActive, isRoomStartingSoon } from "./rooms";
 import type { Room } from "./rooms";
 
 export type RoomSectionSlug = "recently-created" | "starting-soon" | "mostly-crowded";
@@ -31,12 +31,20 @@ export function getRoomSection(slug: string): RoomSectionMeta | null {
   return ROOM_SECTIONS.find((section) => section.slug === slug) ?? null;
 }
 
-/** "Starting Soon" and "Mostly Crowded" need signals we don't track yet (a
- * soon-to-start window, live participant counts) — deliberately left empty
- * rather than faked, same policy as the homepage sections they mirror.
+/** "Mostly Crowded" needs a signal we don't track yet (live participant
+ * counts relative to some baseline) — deliberately left empty rather than
+ * faked, same policy as the homepage section it mirrors.
  * "Recently Created" excludes ended rooms — this is a discovery surface for
- * rooms you can still join and wait in, not an archive of past ones. */
+ * rooms you can still join and wait in, not an archive of past ones.
+ * "Starting Soon" is any active room with under 24 hours left on its
+ * countdown, soonest first — the room's date is when the awaited thing
+ * happens, so a countdown that low means it's about to start. */
 export function getSectionRooms(rooms: Room[], slug: RoomSectionSlug): Room[] {
   if (slug === "recently-created") return rooms.filter(isRoomActive);
+  if (slug === "starting-soon") {
+    return rooms
+      .filter(isRoomStartingSoon)
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  }
   return [];
 }
