@@ -93,7 +93,7 @@ export default function ProfileAvatar({
               type="button"
               onClick={() => fileInputRef.current?.click()}
               aria-label="Change profile picture"
-              className={`avatar-change-overlay absolute inset-0 flex items-center justify-center bg-black/55 transition-opacity ${
+              className={`absolute inset-0 flex items-center justify-center bg-black/55 transition-opacity ${
                 hovering ? "opacity-100" : "opacity-0"
               }`}
             >
