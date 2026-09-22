@@ -186,6 +186,22 @@ export default function RoomChat({ roomId, hasJoined }: RoomChatProps) {
 
   return (
     <>
+      {/* Backdrop: dims the rest of the page while the chat is open, and
+          doubles as the "click outside to close" target. Sits below the
+          nav bar and the chat itself (both z-30) so those stay crisp and
+          clickable on top of it — same layer as the nav menu's own
+          backdrop (SiteHeader), just for the chat's overlay instead. */}
+      {open ? (
+        <div
+          aria-hidden
+          className="fixed inset-0 z-20 bg-black/60 transition-opacity"
+          onClick={() => {
+            clearCloseTimer();
+            setOpen(false);
+          }}
+        />
+      ) : null}
+
       {/* Closed state: a small round icon, fixed in place like the search
           bar elsewhere in this app — always reachable regardless of scroll.
           The badge lives outside the button so the button's own
