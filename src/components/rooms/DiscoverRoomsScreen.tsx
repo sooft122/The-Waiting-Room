@@ -74,10 +74,19 @@ export default function DiscoverRoomsScreen({
     [scopedRooms, categoryFilter],
   );
 
-  // No real "trending" signal yet (no join/view counts to rank by) — for now
-  // the carousel just features whichever rooms exist, oldest of the batch
-  // first, capped at 4. Swap this selection for real trending data later.
-  const carouselRooms = useMemo(() => [...filteredRooms].reverse().slice(0, 4), [filteredRooms]);
+  // Trending = the most-waited-for rooms, ranked by live participant count.
+  // Ended rooms are excluded outright — there's nothing left to "trend"
+  // toward once the wait is over. Spread before sort/filter so this never
+  // mutates filteredRooms itself, which RoomSectionRow below relies on
+  // staying in its original (newest-first) order.
+  const carouselRooms = useMemo(
+    () =>
+      [...filteredRooms]
+        .filter((room) => new Date(room.date).getTime() > Date.now())
+        .sort((a, b) => b.participantCount - a.participantCount)
+        .slice(0, 4),
+    [filteredRooms],
+  );
 
   // "Starting Soon" and "Mostly Crowded" need signals we don't track yet
   // (a soon-to-start window, and live participant counts) — deliberately
