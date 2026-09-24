@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { getServerSession } from "next-auth/next";
 import type { Metadata } from "next";
 import { authOptions } from "@/lib/auth";
-import { getJoinedAt, getRoom, getRoomAnalytics, hasJoinedRoom } from "@/lib/rooms";
+import { getJoinedAt, getRoom, getRoomAnalytics } from "@/lib/rooms";
 import { getMoodBreakdown, getViewerMood } from "@/lib/roomMood";
 import { getRoomEnergy } from "@/lib/roomEnergy";
 import { getLastSeen } from "@/lib/roomPresence";
@@ -42,9 +42,10 @@ export async function generateMetadata({
 }
 
 export default async function RoomPage({ params }: { params: { id: string } }) {
-  const room = await getRoom(params.id);
-  const session = await getServerSession(authOptions);
   const anonId = headers().get("x-anon-id");
+  // Independent of each other — fetched together instead of one after the
+  // other so the page doesn't pay for two round trips back to back.
+  const [room, session] = await Promise.all([getRoom(params.id), getServerSession(authOptions)]);
   const identity = session?.user?.email ?? (anonId ? `anon:${anonId}` : null);
 
   if (!room) {
@@ -65,9 +66,11 @@ export default async function RoomPage({ params }: { params: { id: string } }) {
   }
 
   const isOwner = identity === room.createdBy;
-  const hasJoined = identity ? await hasJoinedRoom(identity, room.id) : false;
   const hasEnded = new Date(room.date).getTime() <= Date.now();
-  const joinedAt = identity && hasJoined ? await getJoinedAt(identity, room.id) : null;
+  // getJoinedAt already returns null when the identity never joined, so it
+  // doubles as the "has joined" check — no need for a separate round trip.
+  const joinedAt = identity ? await getJoinedAt(identity, room.id) : null;
+  const hasJoined = joinedAt !== null;
 
   const [{ breakdown }, viewerMood, roomEnergy, analytics, lastSeenAt] = await Promise.all([
     hasEnded ? Promise.resolve({ breakdown: [] }) : getMoodBreakdown(room.id),

@@ -9,11 +9,12 @@ type SearchPageProps = {
 };
 
 export default async function SearchPage({ searchParams }: SearchPageProps) {
-  const session = await getServerSession(authOptions);
   const anonId = headers().get("x-anon-id");
+  // listRooms doesn't depend on the session — fetch both at once instead of
+  // waiting on the session before even starting the room list.
+  const [session, rooms] = await Promise.all([getServerSession(authOptions), listRooms()]);
   const identity = session?.user?.email ?? (anonId ? `anon:${anonId}` : null);
 
-  const rooms = await listRooms();
   const joinedRoomIds = identity ? await getJoinedRoomIds(identity) : [];
 
   return (
