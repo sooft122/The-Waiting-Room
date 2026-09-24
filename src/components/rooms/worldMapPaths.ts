@@ -5,10 +5,14 @@
 //
 // id is the path's ISO 3166-1 alpha-2 country code where the source SVG
 // labeled it that way (most single-shape countries); countries split into
-// several disconnected landmasses (the US, UK, Russia, Indonesia, and
-// similar archipelagos/multi-part borders) came out of the export as
-// unlabeled "Vector_N" fragments with no recoverable country identity, so
-// they render as part of the base map but can never be highlighted.
+// several disconnected landmasses (archipelagos, exclaves, or just a
+// mainland the exporter didn't treat as one shape) came out of the export
+// as unlabeled "Vector_N" fragments instead. The biggest of those (the US,
+// UK, Russia, Canada, China, Japan, France, Italy, Australia, Argentina,
+// Chile, New Zealand) are recovered via worldMapCountryOverrides.ts, a
+// small manually-identified correction layer CountryMap.tsx consults — the
+// rest (mostly smaller islands) still render as part of the base map but
+// can't be individually highlighted.
 export type WorldMapPath = { id: string; d: string };
 
 export const WORLD_MAP_PATHS: WorldMapPath[] = [

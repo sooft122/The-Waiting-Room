@@ -1,4 +1,5 @@
 import { WORLD_MAP_PATHS, WORLD_MAP_VIEWBOX } from "./worldMapPaths";
+import { WORLD_MAP_COUNTRY_OVERRIDES } from "./worldMapCountryOverrides";
 
 // Matches the source design's highlight exactly: a duplicate of the
 // country's own outline, stroked in this green instead of the map's normal
@@ -8,12 +9,21 @@ const HIGHLIGHT_COLOR = "#77FF75";
 
 type CountryMapProps = {
   /** ISO 3166-1 alpha-2 codes to light up — anything not matching one of
-   * the map's own labeled paths (see worldMapPaths.ts) has no effect. */
+   * the map's own labeled paths, or one of worldMapCountryOverrides.ts's
+   * manual corrections, has no effect. */
   activeCountryCodes: ReadonlySet<string>;
 };
 
+/** A path's real country code — its own id if the source SVG already
+ * labeled it correctly, otherwise the manual correction for it, if any. */
+function resolveCountryId(pathId: string): string {
+  return WORLD_MAP_COUNTRY_OVERRIDES[pathId] ?? pathId;
+}
+
 export default function CountryMap({ activeCountryCodes }: CountryMapProps) {
-  const highlighted = WORLD_MAP_PATHS.filter((path) => activeCountryCodes.has(path.id));
+  const highlighted = WORLD_MAP_PATHS.filter((path) =>
+    activeCountryCodes.has(resolveCountryId(path.id)),
+  );
 
   return (
     <svg viewBox={WORLD_MAP_VIEWBOX} className="block w-full" aria-hidden>
