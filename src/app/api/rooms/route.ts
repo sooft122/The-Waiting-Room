@@ -77,6 +77,7 @@ export async function POST(request: Request) {
   }
 
   try {
+    const countryCode = headers().get("x-vercel-ip-country");
     const room = await createRoom({
       name: name.trim(),
       date,
@@ -85,10 +86,13 @@ export async function POST(request: Request) {
       imageUrl,
       createdBy: session.user.email,
       createdByLabel: session.user.name ?? session.user.email,
+      createdByCountry: isCountryCode(countryCode) ? countryCode : null,
     });
 
-    // The creator is automatically a participant of their own room.
-    const countryCode = headers().get("x-vercel-ip-country");
+    // The creator is automatically a participant of their own room — also
+    // recorded in the live country breakdown, alongside the permanent
+    // createdByCountry field above, so they show up on the map/list like
+    // anyone else currently waiting.
     await Promise.all([
       joinRoom(session.user.email, room.id),
       isCountryCode(countryCode)

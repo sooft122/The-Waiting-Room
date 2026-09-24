@@ -1,5 +1,6 @@
-import { getCountryFlagEmoji, getCountryName } from "@/lib/countries";
+import { getCountryName } from "@/lib/countries";
 import type { CountryBreakdown } from "@/lib/roomCountry";
+import CountryFlag from "./CountryFlag";
 import CountryMap from "./CountryMap";
 
 type CountriesCardProps = {
@@ -40,8 +41,8 @@ export default function CountriesCard({ countries }: CountriesCardProps) {
                   className="flex h-[54px] items-center justify-between rounded-[6px] bg-[rgba(22,23,26,0.14)] px-[12px] py-[6px]"
                 >
                   <div className="flex items-center gap-[10px]">
-                    <div className="flex size-[33px] shrink-0 items-center justify-center rounded-full bg-[#101113] text-[16px]">
-                      {getCountryFlagEmoji(entry.code)}
+                    <div className="flex size-[33px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#101113] text-[16px]">
+                      <CountryFlag code={entry.code} />
                     </div>
                     <div className="flex flex-col items-start gap-[4px] font-figtree text-[12px]">
                       <p className="text-[rgba(255,255,255,0.4)] opacity-70">

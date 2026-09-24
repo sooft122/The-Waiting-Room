@@ -35,6 +35,13 @@ export type Room = {
   createdBy: string;
   /** Display label for the creator, e.g. "Anonymous #4" or a Google name. */
   createdByLabel: string;
+  /** ISO 3166-1 alpha-2 country the creator made the room from (Vercel's own
+   * IP-geolocation header) — null when that header wasn't available, e.g. a
+   * room created outside of Vercel's edge network (local dev). A permanent
+   * record, independent of roomCountry.ts's live "who's currently waiting
+   * from where" tracking, which would otherwise forget the creator's
+   * country if they ever left their own room. */
+  createdByCountry: string | null;
   /** Live count of joined participants — always recomputed from the
    * participants hash at read time, never stored/trusted as a static field. */
   participantCount: number;
@@ -49,6 +56,7 @@ export type CreateRoomInput = {
   imageUrl: string;
   createdBy: string;
   createdByLabel: string;
+  createdByCountry: string | null;
 };
 
 export type UpdateRoomInput = {
