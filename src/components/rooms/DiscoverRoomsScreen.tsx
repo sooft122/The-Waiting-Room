@@ -5,6 +5,7 @@ import type { FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import SiteHeader from "@/components/layout/SiteHeader";
+import Breadcrumbs from "@/components/layout/Breadcrumbs";
 import { ROOM_CATEGORIES, isRoomActive } from "@/lib/rooms";
 import type { Room } from "@/lib/rooms";
 import { getSectionRooms } from "@/lib/roomSections";
@@ -36,6 +37,7 @@ export default function DiscoverRoomsScreen({
   const { data: session } = useSession();
 
   const entrance = useStaggerEntrance();
+  const breadcrumbEntrance = entrance();
   const headerEntrance = entrance();
   const carouselEntrance = entrance();
 
@@ -119,6 +121,15 @@ export default function DiscoverRoomsScreen({
       {/* pt compensates for the nav bar now being fixed (out of normal
           flow) instead of pushing this content down itself. */}
       <main className="relative z-10 mx-auto flex w-full max-w-[1214px] flex-col gap-10 px-5 pb-48 pt-[104px] sm:px-8 sm:pt-[112px] lg:px-0 lg:pt-[125px]">
+        <Breadcrumbs
+          items={[
+            { label: "Home", href: "/" },
+            { label: viewMode === "discover" ? "Discover Rooms" : "Rooms I Created" },
+          ]}
+          className={breadcrumbEntrance.className}
+          style={breadcrumbEntrance.style}
+        />
+
         <div className={`flex flex-col gap-3 ${headerEntrance.className}`} style={headerEntrance.style}>
           <h1 className="font-satoshi text-[24px] leading-[1.08] text-white">
             {viewMode === "discover" ? "Discover Rooms" : "Rooms I Created"}

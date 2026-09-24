@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import SiteHeader from "@/components/layout/SiteHeader";
+import Breadcrumbs from "@/components/layout/Breadcrumbs";
 import RoomCard from "@/components/rooms/RoomCard";
 import { useRoomModal } from "@/components/rooms/RoomModalProvider";
 import { useRecentSearches } from "@/hooks/useRecentSearches";
@@ -30,6 +31,7 @@ export default function SearchScreen({
   const [submittedQuery, setSubmittedQuery] = useState<string | null>(null);
 
   const entrance = useStaggerEntrance(40, 45, 8);
+  const breadcrumbEntrance = entrance();
   const emptyStateEntrance = entrance();
 
   // Arriving from a search bar elsewhere (e.g. Discover Rooms) with a query
@@ -76,7 +78,15 @@ export default function SearchScreen({
 
       {/* pt-top clears the now-fixed nav bar, which no longer pushes this
           content down itself since it's out of normal document flow. */}
-      <main className="relative z-10 flex flex-1 flex-col pb-40 pt-[73px]">
+      <main className="relative z-10 flex flex-1 flex-col pb-40 pt-[104px] sm:pt-[112px] lg:pt-[125px]">
+        <div className="mx-auto w-full max-w-[1214px] px-5 sm:px-8 lg:px-0">
+          <Breadcrumbs
+            items={[{ label: "Home", href: "/" }, { label: "Search" }]}
+            className={breadcrumbEntrance.className}
+            style={breadcrumbEntrance.style}
+          />
+        </div>
+
         {!hasSearched ? (
           <div className="flex flex-1 flex-col items-center justify-center px-6 text-center">
             <p

@@ -2,10 +2,10 @@
 
 import { useMemo, useState } from "react";
 import type { FormEvent } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import SiteHeader from "@/components/layout/SiteHeader";
+import Breadcrumbs from "@/components/layout/Breadcrumbs";
 import { ROOM_CATEGORIES } from "@/lib/rooms";
 import type { Room } from "@/lib/rooms";
 import { useStaggerEntrance } from "@/hooks/useStaggerEntrance";
@@ -90,20 +90,11 @@ export default function RoomSectionAllScreen({
       {/* pt compensates for the nav bar now being fixed (out of normal
           flow) instead of pushing this content down itself. */}
       <main className="relative z-10 mx-auto flex w-full max-w-[1214px] flex-col gap-7 px-5 pb-48 pt-[104px] sm:px-8 sm:pt-[112px] lg:px-0 lg:pt-[125px]">
-        <div
-          className={`flex items-center gap-0.5 ${breadcrumbEntrance.className}`}
+        <Breadcrumbs
+          items={[{ label: "Discover Rooms", href: "/rooms" }, { label: title }]}
+          className={breadcrumbEntrance.className}
           style={breadcrumbEntrance.style}
-        >
-          <Link
-            href="/rooms"
-            className="font-satoshi text-[14px] text-[#d0d0d0] opacity-65 transition-opacity hover:opacity-100"
-          >
-            Discover Rooms
-          </Link>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img alt="" className="size-5" src="/icons/arrow-right-01.svg" />
-          <span className="font-satoshi text-[14px] text-white">{title}</span>
-        </div>
+        />
 
         <div className={`flex flex-col gap-3 ${headerEntrance.className}`} style={headerEntrance.style}>
           <h1 className="font-satoshi text-[24px] leading-[1.08] text-white">{title}</h1>

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
 import SiteHeader from "@/components/layout/SiteHeader";
+import Breadcrumbs from "@/components/layout/Breadcrumbs";
 import RoomCard from "@/components/rooms/RoomCard";
 import GhostButton from "@/components/ui/GhostButton";
 import { useProfileContext } from "@/components/providers/ProfileProvider";
@@ -67,6 +68,7 @@ export default function ProfileScreen({ rooms, anonId }: ProfileScreenProps) {
   const [editOpen, setEditOpen] = useState(false);
 
   const entrance = useStaggerEntrance(70, 45, 8);
+  const breadcrumbEntrance = entrance();
   const titleEntrance = entrance();
   const headerEntrance = entrance();
   const tabsEntrance = entrance();
@@ -98,6 +100,12 @@ export default function ProfileScreen({ rooms, anonId }: ProfileScreenProps) {
       {/* pt compensates for the nav bar now being fixed (out of normal
           flow) instead of pushing this content down itself. */}
       <main className="relative z-10 mx-auto flex w-full max-w-[1214px] flex-col gap-8 px-5 pb-24 pt-[104px] sm:px-8 sm:pt-[112px] lg:px-0 lg:pt-[125px]">
+        <Breadcrumbs
+          items={[{ label: "Home", href: "/" }, { label: "My Profile" }]}
+          className={breadcrumbEntrance.className}
+          style={breadcrumbEntrance.style}
+        />
+
         <h1
           className={`font-satoshi text-[24px] leading-[1.08] text-white ${titleEntrance.className}`}
           style={titleEntrance.style}
