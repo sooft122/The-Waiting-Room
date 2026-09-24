@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import type { GlowingSeed } from "@/lib/roomPresence";
 
 // A simplified stand-in for the Figma design's ~150 hand-placed decorative
 // dots: a deterministic golden-angle spiral (not Math.random — that would
@@ -10,8 +11,12 @@ const VIEWBOX = 260;
 const CENTER = VIEWBOX / 2;
 const MAX_DOTS = 500;
 
-/** Same formula used by LobbyCard to pick a valid random "me" dot index. */
-export function getDotCount(participantCount: number): number {
+// A different color per glowing identity (picked deterministically from
+// their seed below), so several people glowing at once are visibly distinct
+// from each other, not just from the non-glowing crowd.
+const GLOW_COLORS = ["#ffcf6b", "#7ce8ff", "#ff8fd1", "#8fffb0", "#c58fff", "#ffb17c"];
+
+function getDotCount(participantCount: number): number {
   return Math.min(MAX_DOTS, Math.max(0, participantCount));
 }
 
@@ -72,22 +77,38 @@ function buildDots(count: number) {
 
 type LobbySwarmProps = {
   participantCount: number;
-  /** Which dot is "you" — freshly randomized per check-in by LobbyCard, not
-   * tied to identity, so it's never the same dot or color twice in a row. */
-  myDotIndex: number | null;
-  myGlowColor: string;
-  /** Whether "your" dot should currently glow (still within the check-in cooldown). */
-  isGlowing: boolean;
+  /** Anonymous seeds for everyone currently checked in (including the
+   * viewer, once their own check-in round-trips) — hashed into a dot index
+   * and color below so the same identity always lights the same dot for
+   * every viewer, not just their own. */
+  glowingDots: GlowingSeed[];
 };
 
-export default function LobbySwarm({
-  participantCount,
-  myDotIndex,
-  myGlowColor,
-  isGlowing,
-}: LobbySwarmProps) {
+export default function LobbySwarm({ participantCount, glowingDots }: LobbySwarmProps) {
   const dotCount = getDotCount(participantCount);
   const dots = buildDots(dotCount);
+
+  // Map each glowing identity onto a dot index + color, both derived purely
+  // from its seed — deterministic, so it looks identical on every viewer's
+  // screen without ever needing to know who anyone actually is. In a small
+  // room, dotCount is small too, so a plain `dotSeed % dotCount` collides
+  // often (e.g. 4 dots for 4 glowing people lands on ~2 unique slots on
+  // average) — linear-probe to the next free slot instead, sorted by seed
+  // first so every viewer resolves collisions the exact same way. Every
+  // glowing identity gets its own dot as long as there are at least as many
+  // dots as glowing people, which holds whenever presence hasn't outlived
+  // room membership (i.e. basically always).
+  const glowByDotIndex = new Map<number, string>();
+  if (dotCount > 0) {
+    const sorted = [...glowingDots].sort((a, b) => a.dotSeed - b.dotSeed);
+    for (const { dotSeed, colorSeed } of sorted) {
+      let index = dotSeed % dotCount;
+      for (let attempts = 0; attempts < dotCount && glowByDotIndex.has(index); attempts++) {
+        index = (index + 1) % dotCount;
+      }
+      glowByDotIndex.set(index, GLOW_COLORS[colorSeed % GLOW_COLORS.length]);
+    }
+  }
 
   return (
     <svg viewBox={`0 0 ${VIEWBOX} ${VIEWBOX}`} className="block w-full max-w-[260px]" aria-hidden>
@@ -138,14 +159,16 @@ export default function LobbySwarm({
       />
 
       {dots.map((dot, i) => {
-        // The viewer's own dot only stands out while it's actually glowing
-        // (checked in within the last hour) — otherwise it looks like any
-        // other dot, so there's no permanent "this one is you" tell.
-        const isMeGlowing = i === myDotIndex && isGlowing;
+        // A dot only stands out while the identity it hashed to is actually
+        // glowing (checked in within the last hour) — otherwise it looks
+        // like any other dot, so there's no permanent "this one is someone"
+        // tell for a person who's no longer active.
+        const glowColor = glowByDotIndex.get(i);
+        const isDotGlowing = glowColor !== undefined;
         // --dx/--dy/--o-base/--o-pulse (read via var() inside the keyframes)
         // work fine as custom properties. animationDuration/animationDelay do
         // NOT — set as plain literal values instead (see the note in
-        // globals.css). The glowing dot pairs its own drift timing with the
+        // globals.css). A glowing dot pairs its own drift timing with the
         // glow's fixed 1.8s/0s; every other dot pairs drift with its own
         // independent breathing-pulse timing instead.
         const driftStyle: CSSProperties = {
@@ -153,20 +176,20 @@ export default function LobbySwarm({
           ["--dy" as string]: `${dot.dy}px`,
           ["--o-base" as string]: `${dot.opacity}`,
           ["--o-pulse" as string]: `${dot.pulseOpacity}`,
-          animationDuration: isMeGlowing
+          animationDuration: isDotGlowing
             ? `${dot.duration}s, 1.8s`
             : `${dot.duration}s, ${dot.pulseDuration}s`,
-          animationDelay: isMeGlowing ? `${dot.delay}s, 0s` : `${dot.delay}s, ${dot.pulseDelay}s`,
+          animationDelay: isDotGlowing ? `${dot.delay}s, 0s` : `${dot.delay}s, ${dot.pulseDelay}s`,
         };
         return (
           <circle
             key={i}
-            className={`lobby-dot${isMeGlowing ? " lobby-dot-me" : ""}`}
+            className={`lobby-dot${isDotGlowing ? " lobby-dot-glowing" : ""}`}
             cx={dot.x}
             cy={dot.y}
-            r={isMeGlowing ? dot.size / 2 + 1.5 : dot.size / 2}
-            fill={isMeGlowing ? myGlowColor : "white"}
-            opacity={isMeGlowing ? 1 : dot.opacity}
+            r={isDotGlowing ? dot.size / 2 + 1.5 : dot.size / 2}
+            fill={isDotGlowing ? glowColor : "white"}
+            opacity={isDotGlowing ? 1 : dot.opacity}
             style={driftStyle}
           />
         );

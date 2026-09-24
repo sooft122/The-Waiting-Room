@@ -1,15 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { useElapsed } from "@/hooks/useElapsed";
 import { useCooldown } from "@/hooks/useCooldown";
 import { CHECK_IN_COOLDOWN_MS } from "@/lib/roomPresenceConstants";
-import LobbySwarm, { getDotCount } from "./LobbySwarm";
+import type { GlowingSeed } from "@/lib/roomPresence";
+import LobbySwarm from "./LobbySwarm";
 
-// A different dot AND a different color every time someone checks in — no
-// two people (or even the same person twice) look the same.
-const GLOW_COLORS = ["#ffcf6b", "#7ce8ff", "#ff8fd1", "#8fffb0", "#c58fff", "#ffb17c"];
+// Fixed accent for the "You've been waiting" status dot while glowing — just
+// this one viewer's own status, so unlike the swarm's dots it doesn't need
+// to visually distinguish between different people.
+const STILL_HERE_GLOW_COLOR = "#7ce8ff";
 
 type LobbyCardProps = {
   roomId: string;
@@ -17,6 +18,14 @@ type LobbyCardProps = {
   hasJoined: boolean;
   joinedAt: string | null;
   lastSeenAt: string | null;
+  /** Anonymous seeds for everyone currently checked in — including this
+   * viewer, once their own check-in has round-tripped through the parent's
+   * live data — rendered as glowing dots in the swarm below. */
+  glowingDots: GlowingSeed[];
+  /** Called after a check-in lands successfully — lets the parent re-poll
+   * the shared live room data right away, so this viewer's own dot starts
+   * glowing in the swarm without waiting for the next regular poll tick. */
+  onCheckedIn?: () => void;
 };
 
 export default function LobbyCard({
@@ -25,40 +34,18 @@ export default function LobbyCard({
   hasJoined,
   joinedAt,
   lastSeenAt,
+  glowingDots,
+  onCheckedIn,
 }: LobbyCardProps) {
-  const router = useRouter();
   const [checkingIn, setCheckingIn] = useState(false);
   const [localLastSeenAt, setLocalLastSeenAt] = useState(lastSeenAt);
-  const [myDotIndex, setMyDotIndex] = useState<number | null>(null);
-  const [myGlowColor, setMyGlowColor] = useState(GLOW_COLORS[0]);
   const elapsed = useElapsed(joinedAt);
-  // The glow now lasts exactly as long as the cooldown — previously it faded
+  // The glow lasts exactly as long as the cooldown — previously it faded
   // after 15 minutes while the button stayed locked for a full hour, which
   // read as "am I still checked in or not?". Now they match: glowing for as
   // long as you're not allowed to check in again.
   const cooldown = useCooldown(localLastSeenAt, CHECK_IN_COOLDOWN_MS);
   const isGlowing = cooldown.active;
-
-  // Re-roll which dot is "you" and what color it glows whenever you become
-  // checked-in — on mount (e.g. reloading mid-cooldown) and after every
-  // fresh "I'm Still Here" click.
-  //
-  // isGlowing has to be a dependency here, not just localLastSeenAt: when a
-  // check-in lands, setLocalLastSeenAt fires this render with the new
-  // timestamp, but useCooldown's own state (and therefore isGlowing) hasn't
-  // updated yet — it updates its state in ITS OWN effect, which runs AFTER
-  // this one on the same commit, so isGlowing is still stale here. Only on
-  // the FOLLOWING render does isGlowing flip true, but by then
-  // localLastSeenAt is unchanged, so without isGlowing in the deps this
-  // effect never re-runs and myDotIndex is never rolled — the glow only
-  // ever appeared after a full reload, where isGlowing is already correct
-  // on the very first render.
-  useEffect(() => {
-    if (!isGlowing) return;
-    const dotCount = getDotCount(participantCount);
-    setMyDotIndex(Math.floor(Math.random() * dotCount));
-    setMyGlowColor(GLOW_COLORS[Math.floor(Math.random() * GLOW_COLORS.length)]);
-  }, [isGlowing, localLastSeenAt, participantCount]);
 
   async function handleCheckIn() {
     if (cooldown.active) return;
@@ -67,7 +54,7 @@ export default function LobbyCard({
       const response = await fetch(`/api/rooms/${roomId}/presence`, { method: "POST" });
       const data = await response.json().catch(() => ({}));
       if (data.lastSeenAt) setLocalLastSeenAt(data.lastSeenAt);
-      router.refresh();
+      onCheckedIn?.();
     } finally {
       setCheckingIn(false);
     }
@@ -88,7 +75,7 @@ export default function LobbyCard({
             <div className="flex items-center gap-[8px] rounded-[6px] bg-[#16171a] px-[12px] py-[6px]">
               <span
                 className="size-[5px] shrink-0 rounded-full bg-[#7cff8f]"
-                style={isGlowing ? { backgroundColor: myGlowColor } : undefined}
+                style={isGlowing ? { backgroundColor: STILL_HERE_GLOW_COLOR } : undefined}
               />
               <span className="whitespace-nowrap font-figtree text-[12px] text-white opacity-70">
                 You’ve been waiting . {elapsed}
@@ -114,12 +101,7 @@ export default function LobbyCard({
       </div>
 
       <div className="relative flex flex-1 flex-col items-center justify-center py-8">
-        <LobbySwarm
-          participantCount={participantCount}
-          myDotIndex={myDotIndex}
-          myGlowColor={myGlowColor}
-          isGlowing={isGlowing}
-        />
+        <LobbySwarm participantCount={participantCount} glowingDots={glowingDots} />
         <div className="pointer-events-none absolute flex flex-col items-center gap-1">
           <span className="font-inter text-[21px] text-[#f4f4f5]">
             {participantCount.toLocaleString()}

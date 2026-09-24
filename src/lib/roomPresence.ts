@@ -1,6 +1,9 @@
 import { getRedis } from "./redis";
+import { CHECK_IN_COOLDOWN_MS, hashIdentity } from "./roomPresenceConstants";
 
 export { PRESENCE_WINDOW_MS, CHECK_IN_COOLDOWN_MS } from "./roomPresenceConstants";
+
+export type GlowingSeed = { dotSeed: number; colorSeed: number };
 
 const presenceKey = (roomId: string) => `waiting-room:rooms:presence:${roomId}`;
 // Cumulative count of check-ins per identity — never decreases, unlike the
@@ -38,6 +41,24 @@ export async function getLastSeen(roomId: string, identity: string): Promise<str
   if (!redis) return null;
   const value = await redis.hget<string>(presenceKey(roomId), identity);
   return value ?? null;
+}
+
+/** Anonymous seeds for every identity currently within the check-in cooldown
+ * window (i.e. still "glowing" in the Lobby) — hashed so this can be polled
+ * by every viewer of the room without ever exposing raw identities (which
+ * can be a real signed-in email) to someone else's browser. */
+export async function getGlowingSeeds(roomId: string): Promise<GlowingSeed[]> {
+  const redis = getRedis();
+  if (!redis) return [];
+  const raw = (await redis.hgetall<Record<string, string>>(presenceKey(roomId))) ?? {};
+  const now = Date.now();
+  const seeds: GlowingSeed[] = [];
+  for (const [identity, lastSeenIso] of Object.entries(raw)) {
+    if (now - new Date(lastSeenIso).getTime() < CHECK_IN_COOLDOWN_MS) {
+      seeds.push({ dotSeed: hashIdentity(identity), colorSeed: hashIdentity(`${identity}:color`) });
+    }
+  }
+  return seeds;
 }
 
 /** Each identity's total number of check-ins ever (join counts as the first). */

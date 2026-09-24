@@ -10,3 +10,16 @@ export const PRESENCE_WINDOW_MS = 15 * 60 * 1000;
 // "I'm Still Here" can only be pressed once per hour per identity, so it
 // can't be spammed to inflate Room Energy.
 export const CHECK_IN_COOLDOWN_MS = 60 * 60 * 1000;
+
+/** Deterministic (non-cryptographic) string hash — turns an identity into a
+ * stable small integer so the Lobby swarm can pick the same dot/color for
+ * that identity on every viewer's screen, without the server ever having to
+ * send the identity itself (which can be a real signed-in email) to other
+ * people's browsers. */
+export function hashIdentity(value: string): number {
+  let hash = 0;
+  for (let i = 0; i < value.length; i++) {
+    hash = (Math.imul(31, hash) + value.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash);
+}

@@ -305,7 +305,7 @@ body {
 /* A second, comma-paired animation for the glow pulse so the glowing dot
    keeps drifting too — duration/delay for both come from inline styles in
    LobbySwarm.tsx (see note above), not var() here. */
-.lobby-dot-me {
+.lobby-dot-glowing {
   animation-name: lobby-dot-drift, lobby-dot-glow;
   animation-timing-function: ease-in-out, ease-in-out;
   animation-iteration-count: infinite, infinite;
@@ -343,7 +343,7 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .lobby-dot,
-  .lobby-dot-me,
+  .lobby-dot-glowing,
   .lobby-ring {
     animation: none;
   }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import SiteHeader from "@/components/layout/SiteHeader";
 import JoinRoomButton from "@/components/rooms/JoinRoomButton";
 import LeaveRoomButton from "@/components/rooms/LeaveRoomButton";
@@ -14,6 +14,7 @@ import { useCountdown } from "@/hooks/useCountdown";
 import { useStaggerEntrance } from "@/hooks/useStaggerEntrance";
 import type { Room, RoomAnalytics } from "@/lib/rooms";
 import type { Mood, MoodBreakdown } from "@/lib/roomMood";
+import type { GlowingSeed } from "@/lib/roomPresence";
 
 type RoomDetailScreenProps = {
   room: Room;
@@ -27,7 +28,14 @@ type RoomDetailScreenProps = {
   viewerMood: Mood | null;
   roomEnergy: number;
   analytics: RoomAnalytics | null;
+  glowingDots: GlowingSeed[];
 };
+
+// How often every viewer polls for what everyone ELSE in the room has done
+// (joined, voted a mood, checked in) — the page's own server data only ever
+// refreshes for the current viewer's own actions, so without this, someone
+// else's join/vote/check-in only ever showed up after a manual reload.
+const LIVE_POLL_INTERVAL_MS = 5000;
 
 const MOOD_EMOJI: Record<Mood, string> = {
   Hype: "🔥",
@@ -79,10 +87,54 @@ export default function RoomDetailScreen({
   viewerMood,
   roomEnergy,
   analytics,
+  glowingDots,
 }: RoomDetailScreenProps) {
   const countdown = useCountdown(room.date);
   const [copied, setCopied] = useState(false);
   const [editing, setEditing] = useState(false);
+
+  // Everything here that anyone else in the room can change just by using
+  // it (joining, voting, checking in) — kept separate from the props above,
+  // which only ever update for the CURRENT viewer's own actions (a fresh
+  // server render after join/leave). Seeded from the initial server props,
+  // then kept current for everyone by polling below.
+  const [live, setLive] = useState({
+    participantCount: room.participantCount,
+    moodBreakdown,
+    roomEnergy,
+    glowingDots,
+  });
+
+  // A join/leave still triggers a real server refresh (it also needs to flip
+  // this viewer's own hasJoined-dependent UI) — fold its fresh numbers into
+  // `live` immediately instead of waiting for the next poll tick.
+  useEffect(() => {
+    setLive((prev) => ({ ...prev, participantCount: room.participantCount, moodBreakdown, roomEnergy, glowingDots }));
+  }, [room.participantCount, moodBreakdown, roomEnergy, glowingDots]);
+
+  const refreshLive = useCallback(async () => {
+    if (hasEnded) return;
+    try {
+      const response = await fetch(`/api/rooms/${room.id}/live`);
+      if (!response.ok) return;
+      const data = await response.json();
+      setLive((prev) => ({
+        participantCount:
+          typeof data.participantCount === "number" ? data.participantCount : prev.participantCount,
+        moodBreakdown: Array.isArray(data.moodBreakdown) ? data.moodBreakdown : prev.moodBreakdown,
+        roomEnergy: typeof data.roomEnergy === "number" ? data.roomEnergy : prev.roomEnergy,
+        glowingDots: Array.isArray(data.glowingDots) ? data.glowingDots : prev.glowingDots,
+      }));
+    } catch {
+      // Transient — the next poll tick (or the next on-demand call) retries.
+    }
+  }, [room.id, hasEnded]);
+
+  useEffect(() => {
+    if (hasEnded) return;
+    const id = setInterval(refreshLive, LIVE_POLL_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [hasEnded, refreshLive]);
 
   // Same staggered mount-in treatment as the dropdown menu — each major
   // section fades/slides up a beat after the last.
@@ -152,7 +204,7 @@ export default function RoomDetailScreen({
                         {room.name}
                       </p>
                       <p className="font-satoshi text-[14px] opacity-65 sm:text-[18px]">
-                        {room.participantCount.toLocaleString()} waiting
+                        {live.participantCount.toLocaleString()} waiting
                       </p>
                     </div>
                     {countdown ? <CountdownRow countdown={countdown} /> : null}
@@ -220,7 +272,7 @@ export default function RoomDetailScreen({
                   {/* Below sm, there's no room beside the content for a
                       right-docked bar, so it stacks in-flow here instead. */}
                   <div className={`sm:hidden ${energyBarEntrance.className}`} style={energyBarEntrance.style}>
-                    <RoomEnergyBar energy={roomEnergy} />
+                    <RoomEnergyBar energy={live.roomEnergy} />
                   </div>
                 </div>
 
@@ -230,7 +282,7 @@ export default function RoomDetailScreen({
                   className={`absolute bottom-9 right-0 hidden sm:block lg:bottom-[100px] ${energyBarEntrance.className}`}
                   style={energyBarEntrance.style}
                 >
-                  <RoomEnergyBar energy={roomEnergy} />
+                  <RoomEnergyBar energy={live.roomEnergy} />
                 </div>
               </div>
             </div>
@@ -355,18 +407,21 @@ export default function RoomDetailScreen({
           <div className={`flex w-full lg:w-auto ${moodCardEntrance.className}`} style={moodCardEntrance.style}>
             <RoomMoodCard
               roomId={room.id}
-              breakdown={moodBreakdown}
+              breakdown={live.moodBreakdown}
               viewerMood={viewerMood}
               canVote={hasJoined}
+              onVoted={refreshLive}
             />
           </div>
           <div className={`flex w-full flex-1 ${lobbyCardEntrance.className}`} style={lobbyCardEntrance.style}>
             <LobbyCard
               roomId={room.id}
-              participantCount={room.participantCount}
+              participantCount={live.participantCount}
               hasJoined={hasJoined}
               joinedAt={joinedAt}
               lastSeenAt={lastSeenAt}
+              glowingDots={live.glowingDots}
+              onCheckedIn={refreshLive}
             />
           </div>
         </div>

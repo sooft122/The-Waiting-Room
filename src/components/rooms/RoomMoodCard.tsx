@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import type { Mood, MoodBreakdown } from "@/lib/roomMood";
 
 const MOOD_EMOJI: Record<Mood, string> = {
@@ -27,6 +26,10 @@ type RoomMoodCardProps = {
   breakdown: MoodBreakdown[];
   viewerMood: Mood | null;
   canVote: boolean;
+  /** Called after a vote lands successfully — lets the parent re-poll the
+   * shared live room data (Room Energy moves with every vote) right away
+   * instead of waiting for its next regular poll tick. */
+  onVoted?: () => void;
 };
 
 /** Recomputes counts/percentages as if `nextMood` had just been cast,
@@ -49,17 +52,31 @@ function withOptimisticVote(
   });
 }
 
-export default function RoomMoodCard({ roomId, breakdown, viewerMood, canVote }: RoomMoodCardProps) {
-  const router = useRouter();
+export default function RoomMoodCard({
+  roomId,
+  breakdown,
+  viewerMood,
+  canVote,
+  onVoted,
+}: RoomMoodCardProps) {
   const [localMood, setLocalMood] = useState(viewerMood);
   const [localBreakdown, setLocalBreakdown] = useState(breakdown);
 
-  // Stay in sync once the server's own numbers catch up (e.g. after the
-  // background router.refresh() below, or someone else's vote streaming in).
+  // The counts stay in sync with the parent's polling — including someone
+  // else's vote, not just this viewer's — since `breakdown` is genuinely
+  // live data. `viewerMood`, on the other hand, is only ever set once from
+  // the initial page load and never updated by polling (nobody else can
+  // vote as you), so it gets its own effect: syncing it off the same
+  // dependency array as `breakdown` would re-run on every poll tick and
+  // snap a freshly-cast vote back to the stale server value from before it
+  // was cast.
   useEffect(() => {
     setLocalMood(viewerMood);
+  }, [viewerMood]);
+
+  useEffect(() => {
     setLocalBreakdown(breakdown);
-  }, [viewerMood, breakdown]);
+  }, [breakdown]);
 
   // Percentages stay hidden until the viewer has cast a vote of their own —
   // voting again (reselecting) is always allowed and keeps them visible.
@@ -90,9 +107,9 @@ export default function RoomMoodCard({ roomId, breakdown, viewerMood, canVote }:
         const data = (await response.json()) as { breakdown: MoodBreakdown[] };
         setLocalBreakdown(data.breakdown);
         // Room Energy (shown elsewhere on the page) also moves with this
-        // vote — refresh the page's server data in the background to pick
-        // that up, without blocking the mood card itself on it.
-        router.refresh();
+        // vote — let the parent pick that up right away instead of waiting
+        // for its next regular poll tick.
+        onVoted?.();
       })
       .catch(() => {
         setLocalMood(previousMood);
