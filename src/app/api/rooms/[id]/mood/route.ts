@@ -6,17 +6,26 @@ import { getRoom, hasJoinedRoom } from "@/lib/rooms";
 import { castMoodVote, getMoodBreakdown, isMood } from "@/lib/roomMood";
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions);
   const anonId = headers().get("x-anon-id");
+  // None of these three depend on each other — fetched together instead of
+  // one after another so a mood vote isn't paying for three round trips
+  // back to back before it even starts validating anything.
+  const [session, room, body] = await Promise.all([
+    getServerSession(authOptions),
+    getRoom(params.id),
+    request.json().catch(() => null),
+  ]);
   const identity = session?.user?.email ?? (anonId ? `anon:${anonId}` : null);
 
   if (!identity) {
     return NextResponse.json({ error: "No identity available." }, { status: 400 });
   }
-
-  const room = await getRoom(params.id);
   if (!room) {
     return NextResponse.json({ error: "Room not found." }, { status: 404 });
+  }
+  const { mood } = (body ?? {}) as Record<string, unknown>;
+  if (!isMood(mood)) {
+    return NextResponse.json({ error: "Invalid mood." }, { status: 400 });
   }
 
   const joined = await hasJoinedRoom(identity, params.id);
@@ -25,17 +34,6 @@ export async function POST(request: Request, { params }: { params: { id: string 
       { error: "Join the room before setting your mood." },
       { status: 403 },
     );
-  }
-
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
-  }
-  const { mood } = (body ?? {}) as Record<string, unknown>;
-  if (!isMood(mood)) {
-    return NextResponse.json({ error: "Invalid mood." }, { status: 400 });
   }
 
   await castMoodVote(params.id, identity, mood);

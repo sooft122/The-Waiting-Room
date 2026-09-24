@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Mood, MoodBreakdown } from "@/lib/roomMood";
 
@@ -29,29 +29,75 @@ type RoomMoodCardProps = {
   canVote: boolean;
 };
 
+/** Recomputes counts/percentages as if `nextMood` had just been cast,
+ * moving the voter off `previousMood` (if any) — so the bars can update the
+ * instant someone clicks instead of waiting on a round trip to the server. */
+function withOptimisticVote(
+  breakdown: MoodBreakdown[],
+  previousMood: Mood | null,
+  nextMood: Mood,
+): MoodBreakdown[] {
+  const counts = new Map(breakdown.map((entry) => [entry.mood, entry.count]));
+  if (previousMood) counts.set(previousMood, Math.max(0, (counts.get(previousMood) ?? 0) - 1));
+  counts.set(nextMood, (counts.get(nextMood) ?? 0) + 1);
+  const totalVotes = Array.from(counts.values()).reduce((sum, count) => sum + count, 0);
+
+  return breakdown.map((entry) => {
+    const count = counts.get(entry.mood) ?? 0;
+    const percent = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0;
+    return { ...entry, count, percent };
+  });
+}
+
 export default function RoomMoodCard({ roomId, breakdown, viewerMood, canVote }: RoomMoodCardProps) {
   const router = useRouter();
-  const [pending, setPending] = useState(false);
   const [localMood, setLocalMood] = useState(viewerMood);
+  const [localBreakdown, setLocalBreakdown] = useState(breakdown);
+
+  // Stay in sync once the server's own numbers catch up (e.g. after the
+  // background router.refresh() below, or someone else's vote streaming in).
+  useEffect(() => {
+    setLocalMood(viewerMood);
+    setLocalBreakdown(breakdown);
+  }, [viewerMood, breakdown]);
 
   // Percentages stay hidden until the viewer has cast a vote of their own —
   // voting again (reselecting) is always allowed and keeps them visible.
   const hasVoted = localMood !== null;
 
-  async function handleVote(mood: Mood) {
-    if (!canVote || pending || mood === localMood) return;
-    setPending(true);
+  function handleVote(mood: Mood) {
+    if (!canVote || mood === localMood) return;
+    const previousMood = localMood;
+    const previousBreakdown = localBreakdown;
+
+    // Update the selection and bars immediately with a guessed count, then
+    // correct it from the response a moment later — much faster than waiting
+    // on a full page refresh to find out what everyone else has picked.
+    setLocalBreakdown(withOptimisticVote(localBreakdown, previousMood, mood));
     setLocalMood(mood);
-    try {
-      await fetch(`/api/rooms/${roomId}/mood`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mood }),
+
+    fetch(`/api/rooms/${roomId}/mood`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mood }),
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          setLocalMood(previousMood);
+          setLocalBreakdown(previousBreakdown);
+          return;
+        }
+        const data = (await response.json()) as { breakdown: MoodBreakdown[] };
+        setLocalBreakdown(data.breakdown);
+        // Room Energy (shown elsewhere on the page) also moves with this
+        // vote — refresh the page's server data in the background to pick
+        // that up, without blocking the mood card itself on it.
+        router.refresh();
+      })
+      .catch(() => {
+        setLocalMood(previousMood);
+        setLocalBreakdown(previousBreakdown);
       });
-      router.refresh();
-    } finally {
-      setPending(false);
-    }
   }
 
   return (
@@ -60,7 +106,7 @@ export default function RoomMoodCard({ roomId, breakdown, viewerMood, canVote }:
         <h2 className="font-figtree text-[14px] text-white">Room Mood</h2>
       </div>
       <div className="flex flex-col gap-[10px] px-[10px] pt-[10px]">
-        {breakdown.map((entry) => {
+        {localBreakdown.map((entry) => {
           const isSelected = localMood === entry.mood;
           const rgb = MOOD_COLOR[entry.mood];
           return (
@@ -70,7 +116,7 @@ export default function RoomMoodCard({ roomId, breakdown, viewerMood, canVote }:
               data-mood={entry.mood}
               data-selected={isSelected}
               onClick={() => handleVote(entry.mood)}
-              disabled={!canVote || pending}
+              disabled={!canVote}
               className="mood-row room-card-glow relative flex h-[80px] w-full items-center justify-between overflow-hidden rounded-[10px] border px-[8px] text-left transition-colors disabled:cursor-default"
               style={{
                 backgroundColor: "#111113",
