@@ -52,6 +52,11 @@ export async function getCountryBreakdown(roomId: string): Promise<CountryBreakd
     count,
     percent: total > 0 ? Math.round((count / total) * 100) : 0,
   }));
-  breakdown.sort((a, b) => b.count - a.count);
+  // Tied counts need a deterministic tiebreaker — Redis doesn't guarantee
+  // hash iteration order stays the same between reads, so without one, two
+  // countries tied at the same count could swap places on every poll purely
+  // from HGETALL happening to return them in a different order that time,
+  // not from anything actually changing.
+  breakdown.sort((a, b) => b.count - a.count || a.code.localeCompare(b.code));
   return breakdown;
 }
