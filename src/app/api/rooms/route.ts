@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { headers } from "next/headers";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import {
@@ -10,6 +11,7 @@ import {
   listRooms,
   parseRoomTime,
 } from "@/lib/rooms";
+import { isCountryCode, setParticipantCountry } from "@/lib/roomCountry";
 
 // Base64 inflates raw bytes by ~4/3; this caps the *encoded* string length,
 // corresponding to roughly a 4MB source image.
@@ -86,7 +88,13 @@ export async function POST(request: Request) {
     });
 
     // The creator is automatically a participant of their own room.
-    await joinRoom(session.user.email, room.id);
+    const countryCode = headers().get("x-vercel-ip-country");
+    await Promise.all([
+      joinRoom(session.user.email, room.id),
+      isCountryCode(countryCode)
+        ? setParticipantCountry(room.id, session.user.email, countryCode)
+        : null,
+    ]);
     const roomWithCreatorJoined = (await getRoom(room.id)) ?? room;
 
     return NextResponse.json({ room: roomWithCreatorJoined }, { status: 201 });

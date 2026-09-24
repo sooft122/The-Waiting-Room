@@ -3,6 +3,7 @@ import { getRoom, isRoomActive } from "@/lib/rooms";
 import { getMoodBreakdown } from "@/lib/roomMood";
 import { getRoomEnergy } from "@/lib/roomEnergy";
 import { getGlowingSeeds } from "@/lib/roomPresence";
+import { getCountryBreakdown } from "@/lib/roomCountry";
 
 /**
  * Polled periodically by everyone currently viewing a room so another
@@ -19,10 +20,11 @@ export async function GET(_request: Request, { params }: { params: { id: string 
   }
 
   const active = isRoomActive(room);
-  const [{ breakdown }, roomEnergy, glowingDots] = await Promise.all([
+  const [{ breakdown }, roomEnergy, glowingDots, countries] = await Promise.all([
     active ? getMoodBreakdown(room.id) : Promise.resolve({ breakdown: [] }),
     active ? getRoomEnergy(room.id, room.participantCount) : Promise.resolve(0),
     active ? getGlowingSeeds(room.id) : Promise.resolve([]),
+    active ? getCountryBreakdown(room.id) : Promise.resolve([]),
   ]);
 
   return NextResponse.json({
@@ -30,5 +32,6 @@ export async function GET(_request: Request, { params }: { params: { id: string 
     moodBreakdown: breakdown,
     roomEnergy,
     glowingDots,
+    countries,
   });
 }

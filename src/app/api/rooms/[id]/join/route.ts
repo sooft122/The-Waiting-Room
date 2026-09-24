@@ -4,11 +4,15 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { getRoom, joinRoom } from "@/lib/rooms";
 import { checkIn } from "@/lib/roomPresence";
+import { isCountryCode, setParticipantCountry } from "@/lib/roomCountry";
 
 export async function POST(_request: Request, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
   const anonId = headers().get("x-anon-id");
   const identity = session?.user?.email ?? (anonId ? `anon:${anonId}` : null);
+  // Vercel's own edge geolocation — present on deployed requests, absent in
+  // local dev, in which case the join just isn't attributed to a country.
+  const countryCode = headers().get("x-vercel-ip-country");
 
   if (!identity) {
     return NextResponse.json({ error: "No identity available." }, { status: 400 });
@@ -21,8 +25,12 @@ export async function POST(_request: Request, { params }: { params: { id: string
 
   try {
     // A freshly-joined participant counts as present immediately, without
-    // needing to hit "I'm Still Here" first. These two writes are independent.
-    await Promise.all([joinRoom(identity, params.id), checkIn(params.id, identity)]);
+    // needing to hit "I'm Still Here" first. These writes are independent.
+    await Promise.all([
+      joinRoom(identity, params.id),
+      checkIn(params.id, identity),
+      isCountryCode(countryCode) ? setParticipantCountry(params.id, identity, countryCode) : null,
+    ]);
   } catch {
     return NextResponse.json(
       {

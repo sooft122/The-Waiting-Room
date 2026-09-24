@@ -7,6 +7,7 @@ import { getJoinedAt, getRoom, getRoomAnalytics, isRoomActive } from "@/lib/room
 import { getMoodBreakdown, getViewerMood } from "@/lib/roomMood";
 import { getRoomEnergy } from "@/lib/roomEnergy";
 import { getGlowingSeeds, getLastSeen } from "@/lib/roomPresence";
+import { getCountryBreakdown } from "@/lib/roomCountry";
 import RoomDetailScreen from "@/components/rooms/RoomDetailScreen";
 
 export const dynamic = "force-dynamic";
@@ -72,14 +73,16 @@ export default async function RoomPage({ params }: { params: { id: string } }) {
   const joinedAt = identity ? await getJoinedAt(identity, room.id) : null;
   const hasJoined = joinedAt !== null;
 
-  const [{ breakdown }, viewerMood, roomEnergy, analytics, lastSeenAt, glowingDots] = await Promise.all([
-    hasEnded ? Promise.resolve({ breakdown: [] }) : getMoodBreakdown(room.id),
-    hasEnded || !identity ? Promise.resolve(null) : getViewerMood(room.id, identity),
-    hasEnded ? Promise.resolve(0) : getRoomEnergy(room.id, room.participantCount),
-    hasEnded ? getRoomAnalytics(room) : Promise.resolve(null),
-    hasEnded || !identity || !hasJoined ? Promise.resolve(null) : getLastSeen(room.id, identity),
-    hasEnded ? Promise.resolve([]) : getGlowingSeeds(room.id),
-  ]);
+  const [{ breakdown }, viewerMood, roomEnergy, analytics, lastSeenAt, glowingDots, countries] =
+    await Promise.all([
+      hasEnded ? Promise.resolve({ breakdown: [] }) : getMoodBreakdown(room.id),
+      hasEnded || !identity ? Promise.resolve(null) : getViewerMood(room.id, identity),
+      hasEnded ? Promise.resolve(0) : getRoomEnergy(room.id, room.participantCount),
+      hasEnded ? getRoomAnalytics(room) : Promise.resolve(null),
+      hasEnded || !identity || !hasJoined ? Promise.resolve(null) : getLastSeen(room.id, identity),
+      hasEnded ? Promise.resolve([]) : getGlowingSeeds(room.id),
+      hasEnded ? Promise.resolve([]) : getCountryBreakdown(room.id),
+    ]);
 
   return (
     <RoomDetailScreen
@@ -95,6 +98,7 @@ export default async function RoomPage({ params }: { params: { id: string } }) {
       roomEnergy={roomEnergy}
       analytics={analytics}
       glowingDots={glowingDots}
+      countries={countries}
     />
   );
 }

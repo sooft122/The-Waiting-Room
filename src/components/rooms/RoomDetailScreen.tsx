@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import SiteHeader from "@/components/layout/SiteHeader";
+import Breadcrumbs from "@/components/layout/Breadcrumbs";
 import JoinRoomButton from "@/components/rooms/JoinRoomButton";
 import LeaveRoomButton from "@/components/rooms/LeaveRoomButton";
 import RoomMoodCard from "@/components/rooms/RoomMoodCard";
@@ -9,12 +10,14 @@ import LobbyCard from "@/components/rooms/LobbyCard";
 import RoomEnergyBar from "@/components/rooms/RoomEnergyBar";
 import RoomChat from "@/components/rooms/RoomChat";
 import EditRoomModal from "@/components/rooms/EditRoomModal";
+import CountriesCard from "@/components/rooms/CountriesCard";
 import { CountdownRow } from "@/components/rooms/CountdownUnits";
 import { useCountdown } from "@/hooks/useCountdown";
 import { useStaggerEntrance } from "@/hooks/useStaggerEntrance";
 import type { Room, RoomAnalytics } from "@/lib/rooms";
 import type { Mood, MoodBreakdown } from "@/lib/roomMood";
 import type { GlowingSeed } from "@/lib/roomPresence";
+import type { CountryBreakdown } from "@/lib/roomCountry";
 import { getRoomEndTime } from "@/lib/roomTime";
 
 type RoomDetailScreenProps = {
@@ -30,6 +33,7 @@ type RoomDetailScreenProps = {
   roomEnergy: number;
   analytics: RoomAnalytics | null;
   glowingDots: GlowingSeed[];
+  countries: CountryBreakdown[];
 };
 
 // How often every viewer polls for what everyone ELSE in the room has done
@@ -89,6 +93,7 @@ export default function RoomDetailScreen({
   roomEnergy,
   analytics,
   glowingDots,
+  countries,
 }: RoomDetailScreenProps) {
   const countdown = useCountdown(getRoomEndTime(room).toISOString());
   const [copied, setCopied] = useState(false);
@@ -104,14 +109,22 @@ export default function RoomDetailScreen({
     moodBreakdown,
     roomEnergy,
     glowingDots,
+    countries,
   });
 
   // A join/leave still triggers a real server refresh (it also needs to flip
   // this viewer's own hasJoined-dependent UI) — fold its fresh numbers into
   // `live` immediately instead of waiting for the next poll tick.
   useEffect(() => {
-    setLive((prev) => ({ ...prev, participantCount: room.participantCount, moodBreakdown, roomEnergy, glowingDots }));
-  }, [room.participantCount, moodBreakdown, roomEnergy, glowingDots]);
+    setLive((prev) => ({
+      ...prev,
+      participantCount: room.participantCount,
+      moodBreakdown,
+      roomEnergy,
+      glowingDots,
+      countries,
+    }));
+  }, [room.participantCount, moodBreakdown, roomEnergy, glowingDots, countries]);
 
   const refreshLive = useCallback(async () => {
     if (hasEnded) return;
@@ -125,6 +138,7 @@ export default function RoomDetailScreen({
         moodBreakdown: Array.isArray(data.moodBreakdown) ? data.moodBreakdown : prev.moodBreakdown,
         roomEnergy: typeof data.roomEnergy === "number" ? data.roomEnergy : prev.roomEnergy,
         glowingDots: Array.isArray(data.glowingDots) ? data.glowingDots : prev.glowingDots,
+        countries: Array.isArray(data.countries) ? data.countries : prev.countries,
       }));
     } catch {
       // Transient — the next poll tick (or the next on-demand call) retries.
@@ -140,6 +154,7 @@ export default function RoomDetailScreen({
   // Same staggered mount-in treatment as the dropdown menu — each major
   // section fades/slides up a beat after the last.
   const entrance = useStaggerEntrance(90, 70);
+  const breadcrumbEntrance = entrance();
   const heroTextEntrance = entrance();
   const heroButtonsEntrance = entrance();
   const energyBarEntrance = entrance();
@@ -148,6 +163,7 @@ export default function RoomDetailScreen({
   const endedShareEntrance = entrance();
   const moodCardEntrance = entrance();
   const lobbyCardEntrance = entrance();
+  const countriesCardEntrance = entrance();
 
   const shareUrl = typeof window !== "undefined" ? `${window.location.origin}/rooms/${room.id}` : "";
 
@@ -191,6 +207,22 @@ export default function RoomDetailScreen({
                 "linear-gradient(to bottom, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0) 16%, rgba(0,0,0,0) 38.473%, rgba(0,0,0,0.92) 92.271%)",
             }}
           />
+
+          {/* Same vertical position every other page's own content starts
+              at (their pt-[104px]/[112px]/[125px]) — sits just below the
+              fixed nav. The hero's own top-fade alone doesn't guarantee
+              contrast (a bright thumbnail can still wash it out up here),
+              so it also carries its own drop-shadow rather than relying on
+              the gradient underneath it. */}
+          <div
+            className={`absolute left-0 right-0 top-[104px] z-10 sm:top-[112px] lg:top-[125px] ${ALIGNED_CONTAINER_CLASS}`}
+          >
+            <Breadcrumbs
+              items={[{ label: "Discover Rooms", href: "/rooms" }, { label: room.name }]}
+              className={`drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)] ${breadcrumbEntrance.className}`}
+              style={breadcrumbEntrance.style}
+            />
+          </div>
 
           {!hasEnded ? (
             <div className={`absolute inset-0 ${ALIGNED_CONTAINER_CLASS}`}>
@@ -429,6 +461,15 @@ export default function RoomDetailScreen({
       ) : (
         <div className="h-[10px]" />
       )}
+
+      {!hasEnded ? (
+        <div
+          className={`pb-[10px] ${ALIGNED_CONTAINER_CLASS} ${countriesCardEntrance.className}`}
+          style={countriesCardEntrance.style}
+        >
+          <CountriesCard countries={live.countries} />
+        </div>
+      ) : null}
 
       {!hasEnded ? <RoomChat roomId={room.id} hasJoined={hasJoined} /> : null}
 
