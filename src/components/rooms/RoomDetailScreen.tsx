@@ -15,6 +15,7 @@ import { useStaggerEntrance } from "@/hooks/useStaggerEntrance";
 import type { Room, RoomAnalytics } from "@/lib/rooms";
 import type { Mood, MoodBreakdown } from "@/lib/roomMood";
 import type { GlowingSeed } from "@/lib/roomPresence";
+import { getRoomEndTime } from "@/lib/roomTime";
 
 type RoomDetailScreenProps = {
   room: Room;
@@ -89,7 +90,7 @@ export default function RoomDetailScreen({
   analytics,
   glowingDots,
 }: RoomDetailScreenProps) {
-  const countdown = useCountdown(room.date);
+  const countdown = useCountdown(getRoomEndTime(room).toISOString());
   const [copied, setCopied] = useState(false);
   const [editing, setEditing] = useState(false);
 

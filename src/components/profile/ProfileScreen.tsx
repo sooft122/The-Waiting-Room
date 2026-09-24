@@ -8,6 +8,7 @@ import RoomCard from "@/components/rooms/RoomCard";
 import GhostButton from "@/components/ui/GhostButton";
 import { useProfileContext } from "@/components/providers/ProfileProvider";
 import { useStaggerEntrance } from "@/hooks/useStaggerEntrance";
+import { isRoomActive } from "@/lib/rooms";
 import type { Room } from "@/lib/rooms";
 import ProfileAvatar from "./ProfileAvatar";
 import EditProfileNameModal from "./EditProfileNameModal";
@@ -70,14 +71,8 @@ export default function ProfileScreen({ rooms, anonId }: ProfileScreenProps) {
   const headerEntrance = entrance();
   const tabsEntrance = entrance();
 
-  const activeRooms = useMemo(
-    () => rooms.filter((room) => new Date(room.date).getTime() > Date.now()),
-    [rooms],
-  );
-  const endedRooms = useMemo(
-    () => rooms.filter((room) => new Date(room.date).getTime() <= Date.now()),
-    [rooms],
-  );
+  const activeRooms = useMemo(() => rooms.filter(isRoomActive), [rooms]);
+  const endedRooms = useMemo(() => rooms.filter((room) => !isRoomActive(room)), [rooms]);
   const visibleRooms = activeTab === "active" ? activeRooms : endedRooms;
   const cardEntrances = visibleRooms.map(() => entrance());
 

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import SiteHeader from "@/components/layout/SiteHeader";
 import RoomSectionRow from "@/components/rooms/RoomSectionRow";
 import { useStaggerEntrance } from "@/hooks/useStaggerEntrance";
+import { isRoomActive } from "@/lib/rooms";
 import type { Room } from "@/lib/rooms";
 
 const FILTERS = ["All", "Ongoing", "Ended"] as const;
@@ -25,14 +26,8 @@ export default function ArchiveRoomScreen({ rooms, anonId }: ArchiveRoomScreenPr
   const entrance = useStaggerEntrance();
   const headerEntrance = entrance();
 
-  const ongoingRooms = useMemo(
-    () => rooms.filter((room) => new Date(room.date).getTime() > Date.now()),
-    [rooms],
-  );
-  const endedRooms = useMemo(
-    () => rooms.filter((room) => new Date(room.date).getTime() <= Date.now()),
-    [rooms],
-  );
+  const ongoingRooms = useMemo(() => rooms.filter(isRoomActive), [rooms]);
+  const endedRooms = useMemo(() => rooms.filter((room) => !isRoomActive(room)), [rooms]);
 
   const counts: Record<Filter, number> = {
     All: rooms.length,

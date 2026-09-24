@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
-import { deleteRoom, getRoom, isRoomCategory, updateRoom } from "@/lib/rooms";
+import { deleteRoom, getRoom, getRoomEndTime, isRoomCategory, parseRoomTime, updateRoom } from "@/lib/rooms";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +27,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   } catch {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
-  const { name, date, category, imageUrl } = (body ?? {}) as Record<string, unknown>;
+  const { name, date, time: rawTime, category, imageUrl } = (body ?? {}) as Record<string, unknown>;
 
   if (typeof name !== "string" || !name.trim()) {
     return NextResponse.json({ error: "Room name is required." }, { status: 400 });
@@ -41,7 +41,12 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   if (typeof date !== "string" || Number.isNaN(Date.parse(date))) {
     return NextResponse.json({ error: "A valid date is required." }, { status: 400 });
   }
-  if (new Date(date).getTime() <= Date.now()) {
+  const parsedTime = parseRoomTime(rawTime);
+  if (!parsedTime.ok) {
+    return NextResponse.json({ error: "Invalid time — expected HH:mm." }, { status: 400 });
+  }
+  const time = parsedTime.time;
+  if (getRoomEndTime({ date, time }).getTime() <= Date.now()) {
     return NextResponse.json(
       { error: "The date must be in the future — pick when the wait ends." },
       { status: 400 },
@@ -63,6 +68,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   const updated = await updateRoom(params.id, {
     name: name.trim(),
     date,
+    time,
     category,
     imageUrl,
   });

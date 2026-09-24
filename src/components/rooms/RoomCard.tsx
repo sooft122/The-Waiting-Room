@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { Room } from "@/lib/rooms";
 import { useCountdown } from "@/hooks/useCountdown";
+import { getRoomEndTime } from "@/lib/roomTime";
 import { CountdownRow } from "./CountdownUnits";
 
 type RoomCardProps = {
@@ -11,7 +12,7 @@ type RoomCardProps = {
 };
 
 export default function RoomCard({ room, joined = false }: RoomCardProps) {
-  const countdown = useCountdown(room.date);
+  const countdown = useCountdown(getRoomEndTime(room).toISOString());
   const hasEnded = countdown === null;
 
   return (

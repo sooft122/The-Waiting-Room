@@ -1,4 +1,4 @@
-import { isRoomActive, isRoomStartingSoon } from "./rooms";
+import { getRoomEndTime, isRoomActive, isRoomStartingSoon } from "./rooms";
 import type { Room } from "./rooms";
 
 export type RoomSectionSlug = "recently-created" | "starting-soon" | "mostly-crowded";
@@ -44,7 +44,7 @@ export function getSectionRooms(rooms: Room[], slug: RoomSectionSlug): Room[] {
   if (slug === "starting-soon") {
     return rooms
       .filter(isRoomStartingSoon)
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      .sort((a, b) => getRoomEndTime(a).getTime() - getRoomEndTime(b).getTime());
   }
   return [];
 }

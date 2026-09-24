@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { getServerSession } from "next-auth/next";
 import type { Metadata } from "next";
 import { authOptions } from "@/lib/auth";
-import { getJoinedAt, getRoom, getRoomAnalytics } from "@/lib/rooms";
+import { getJoinedAt, getRoom, getRoomAnalytics, isRoomActive } from "@/lib/rooms";
 import { getMoodBreakdown, getViewerMood } from "@/lib/roomMood";
 import { getRoomEnergy } from "@/lib/roomEnergy";
 import { getGlowingSeeds, getLastSeen } from "@/lib/roomPresence";
@@ -66,7 +66,7 @@ export default async function RoomPage({ params }: { params: { id: string } }) {
   }
 
   const isOwner = identity === room.createdBy;
-  const hasEnded = new Date(room.date).getTime() <= Date.now();
+  const hasEnded = !isRoomActive(room);
   // getJoinedAt already returns null when the identity never joined, so it
   // doubles as the "has joined" check — no need for a separate round trip.
   const joinedAt = identity ? await getJoinedAt(identity, room.id) : null;

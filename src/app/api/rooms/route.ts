@@ -1,7 +1,15 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
-import { createRoom, getRoom, isRoomCategory, joinRoom, listRooms } from "@/lib/rooms";
+import {
+  createRoom,
+  getRoom,
+  getRoomEndTime,
+  isRoomCategory,
+  joinRoom,
+  listRooms,
+  parseRoomTime,
+} from "@/lib/rooms";
 
 // Base64 inflates raw bytes by ~4/3; this caps the *encoded* string length,
 // corresponding to roughly a 4MB source image.
@@ -28,7 +36,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
-  const { name, date, category, imageUrl } = (body ?? {}) as Record<string, unknown>;
+  const { name, date, time: rawTime, category, imageUrl } = (body ?? {}) as Record<string, unknown>;
 
   if (typeof name !== "string" || !name.trim()) {
     return NextResponse.json({ error: "Room name is required." }, { status: 400 });
@@ -42,7 +50,12 @@ export async function POST(request: Request) {
   if (typeof date !== "string" || Number.isNaN(Date.parse(date))) {
     return NextResponse.json({ error: "A valid date is required." }, { status: 400 });
   }
-  if (new Date(date).getTime() <= Date.now()) {
+  const parsedTime = parseRoomTime(rawTime);
+  if (!parsedTime.ok) {
+    return NextResponse.json({ error: "Invalid time — expected HH:mm." }, { status: 400 });
+  }
+  const time = parsedTime.time;
+  if (getRoomEndTime({ date, time }).getTime() <= Date.now()) {
     return NextResponse.json(
       { error: "The date must be in the future — pick when the wait ends." },
       { status: 400 },
@@ -65,6 +78,7 @@ export async function POST(request: Request) {
     const room = await createRoom({
       name: name.trim(),
       date,
+      time,
       category,
       imageUrl,
       createdBy: session.user.email,

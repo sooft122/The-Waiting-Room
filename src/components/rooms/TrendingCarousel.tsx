@@ -5,6 +5,7 @@ import type { MouseEvent } from "react";
 import { useRouter } from "next/navigation";
 import type { Room } from "@/lib/rooms";
 import { useCountdown } from "@/hooks/useCountdown";
+import { getRoomEndTime } from "@/lib/roomTime";
 import { CountdownRow } from "./CountdownUnits";
 import JoinRoomButton from "./JoinRoomButton";
 
@@ -28,7 +29,9 @@ export default function TrendingCarousel({ rooms }: TrendingCarouselProps) {
   // for prev) instead of always sliding in from the same direction.
   const [direction, setDirection] = useState(1);
   const room = rooms[Math.min(index, rooms.length - 1)] ?? null;
-  const countdown = useCountdown(room?.date ?? new Date(Date.now() + 86_400_000).toISOString());
+  const countdown = useCountdown(
+    room ? getRoomEndTime(room).toISOString() : new Date(Date.now() + 86_400_000).toISOString(),
+  );
 
   useEffect(() => {
     if (rooms.length <= 1) return;

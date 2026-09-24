@@ -9,6 +9,7 @@ import { useStaggerEntrance } from "@/hooks/useStaggerEntrance";
 import { compressImageToDataUrl } from "@/lib/compressImage";
 import { findLikelyDuplicates } from "@/lib/roomDuplicates";
 import type { DuplicateMatch } from "@/lib/roomDuplicates";
+import { getRoomEndTime } from "@/lib/roomTime";
 import ModalShell from "./ModalShell";
 
 // How long to wait after the last keystroke before checking for
@@ -40,6 +41,7 @@ export default function CreateRoomModal({ onClose, onCreated }: CreateRoomModalP
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [name, setName] = useState("");
   const [date, setDate] = useState("");
+  const [time, setTime] = useState("");
   const [category, setCategory] = useState("");
   const [errors, setErrors] = useState<FormErrors>({});
   const [submitting, setSubmitting] = useState(false);
@@ -80,6 +82,7 @@ export default function CreateRoomModal({ onClose, onCreated }: CreateRoomModalP
   const uploadEntrance = entrance();
   const nameEntrance = entrance();
   const dateEntrance = entrance();
+  const timeEntrance = entrance();
   const categoryEntrance = entrance();
   const submitEntrance = entrance();
 
@@ -123,7 +126,7 @@ export default function CreateRoomModal({ onClose, onCreated }: CreateRoomModalP
     if (!name.trim()) nextErrors.name = "Room name is required.";
     if (!date) {
       nextErrors.date = "Please choose a date.";
-    } else if (new Date(date).getTime() <= Date.now()) {
+    } else if (getRoomEndTime({ date, time: time || null }).getTime() <= Date.now()) {
       nextErrors.date = "Date must be in the future.";
     }
     if (!category) nextErrors.category = "Please select a category.";
@@ -139,7 +142,13 @@ export default function CreateRoomModal({ onClose, onCreated }: CreateRoomModalP
       const response = await fetch("/api/rooms", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), date, category, imageUrl: imagePreview }),
+        body: JSON.stringify({
+          name: name.trim(),
+          date,
+          time: time || null,
+          category,
+          imageUrl: imagePreview,
+        }),
       });
       const data = await response.json();
       if (!response.ok) {
@@ -282,33 +291,60 @@ export default function CreateRoomModal({ onClose, onCreated }: CreateRoomModalP
             ) : null}
           </div>
 
-          <div
-            className={`flex w-full flex-col gap-1.5 ${dateEntrance.className}`}
-            style={dateEntrance.style}
-          >
-            <label htmlFor="room-date" className="font-satoshi text-[12px] text-white">
-              Date
-            </label>
-            <div className="relative h-9 w-full">
-              <input
-                id="room-date"
-                type="date"
-                value={date}
-                min={new Date(Date.now() + 86_400_000).toISOString().slice(0, 10)}
-                onChange={(event) => setDate(event.target.value)}
-                className="h-9 w-full appearance-none rounded-[8px] border border-[#2b2d30] bg-[#1b1c21] px-2.5 font-satoshi text-[12px] text-white [color-scheme:dark] focus:outline-none focus:ring-1 focus:ring-white/30 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0"
-              />
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                alt=""
-                aria-hidden
-                className="pointer-events-none absolute right-1.5 top-1/2 size-5 -translate-y-1/2"
-                src="/icons/calendar-03.svg"
-              />
+          <div className="flex w-full items-start gap-2.5">
+            <div
+              className={`flex w-full flex-col gap-1.5 ${dateEntrance.className}`}
+              style={dateEntrance.style}
+            >
+              <label htmlFor="room-date" className="font-satoshi text-[12px] text-white">
+                Date
+              </label>
+              <div className="relative h-9 w-full">
+                <input
+                  id="room-date"
+                  type="date"
+                  value={date}
+                  min={new Date(Date.now() + 86_400_000).toISOString().slice(0, 10)}
+                  onChange={(event) => setDate(event.target.value)}
+                  className="h-9 w-full appearance-none rounded-[8px] border border-[#2b2d30] bg-[#1b1c21] px-2.5 font-satoshi text-[12px] text-white [color-scheme:dark] focus:outline-none focus:ring-1 focus:ring-white/30 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0"
+                />
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  alt=""
+                  aria-hidden
+                  className="pointer-events-none absolute right-1.5 top-1/2 size-5 -translate-y-1/2"
+                  src="/icons/calendar-03.svg"
+                />
+              </div>
+              {errors.date ? (
+                <p className="font-inter text-[11px] text-red-400">{errors.date}</p>
+              ) : null}
             </div>
-            {errors.date ? (
-              <p className="font-inter text-[11px] text-red-400">{errors.date}</p>
-            ) : null}
+
+            <div
+              className={`flex w-full flex-col gap-1.5 ${timeEntrance.className}`}
+              style={timeEntrance.style}
+            >
+              <label htmlFor="room-time" className="font-satoshi text-[12px] text-white">
+                Time <span className="text-white/40">(optional)</span>
+              </label>
+              <div className="relative h-9 w-full">
+                <input
+                  id="room-time"
+                  type="time"
+                  value={time}
+                  onChange={(event) => setTime(event.target.value)}
+                  className="h-9 w-full appearance-none rounded-[8px] border border-[#2b2d30] bg-[#1b1c21] px-2.5 font-satoshi text-[12px] text-white [color-scheme:dark] focus:outline-none focus:ring-1 focus:ring-white/30 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0"
+                />
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  alt=""
+                  aria-hidden
+                  className="pointer-events-none absolute right-1.5 top-1/2 size-5 -translate-y-1/2"
+                  src="/icons/time-04.svg"
+                />
+              </div>
+            </div>
           </div>
 
           <div

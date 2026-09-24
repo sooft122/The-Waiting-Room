@@ -2,6 +2,9 @@ import { getRedis } from "./redis";
 import { clearMoodVote, getMoodBreakdown, type Mood, type MoodBreakdown } from "./roomMood";
 import { clearPresence } from "./roomPresence";
 import { clearChatCount } from "./roomChat";
+import { getRoomEndTime } from "./roomTime";
+
+export { getRoomEndTime, parseRoomTime } from "./roomTime";
 
 export const ROOM_CATEGORIES = [
   "Sports",
@@ -20,6 +23,10 @@ export type Room = {
   name: string;
   /** ISO date (yyyy-mm-dd) — when the room stops waiting. */
   date: string;
+  /** Optional 24h "HH:mm" time of day the wait ends. Null (or missing, for
+   * rooms created before this field existed) means the countdown/active
+   * checks fall back to UTC midnight on `date` — see getRoomEndTime. */
+  time: string | null;
   category: RoomCategory;
   /** Data URI of the uploaded thumbnail. */
   imageUrl: string;
@@ -36,6 +43,7 @@ export type Room = {
 export type CreateRoomInput = {
   name: string;
   date: string;
+  time: string | null;
   category: RoomCategory;
   imageUrl: string;
   createdBy: string;
@@ -45,6 +53,7 @@ export type CreateRoomInput = {
 export type UpdateRoomInput = {
   name: string;
   date: string;
+  time: string | null;
   category: RoomCategory;
   imageUrl: string;
 };
@@ -69,9 +78,9 @@ export function isRoomCategory(value: unknown): value is RoomCategory {
   return typeof value === "string" && (ROOM_CATEGORIES as readonly string[]).includes(value);
 }
 
-/** Whether a room's wait is still ongoing (its end date hasn't passed yet). */
+/** Whether a room's wait is still ongoing (its end date/time hasn't passed yet). */
 export function isRoomActive(room: Room): boolean {
-  return new Date(room.date).getTime() > Date.now();
+  return getRoomEndTime(room).getTime() > Date.now();
 }
 
 const STARTING_SOON_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -79,7 +88,7 @@ const STARTING_SOON_WINDOW_MS = 24 * 60 * 60 * 1000;
 /** Whether a room is still active but its countdown has less than 24 hours
  * left — the event it's counting down to is about to happen. */
 export function isRoomStartingSoon(room: Room): boolean {
-  const msRemaining = new Date(room.date).getTime() - Date.now();
+  const msRemaining = getRoomEndTime(room).getTime() - Date.now();
   return msRemaining > 0 && msRemaining <= STARTING_SOON_WINDOW_MS;
 }
 
@@ -231,7 +240,7 @@ export async function getJoinedRoomIds(identity: string): Promise<string[]> {
  */
 export async function getRoomAnalytics(room: Room): Promise<RoomAnalytics> {
   const redis = getRedis();
-  const endMs = new Date(room.date).getTime();
+  const endMs = getRoomEndTime(room).getTime();
   const createdMs = new Date(room.createdAt).getTime();
   const totalWaitDays = Math.max(0, Math.round((endMs - createdMs) / 86_400_000));
 
