@@ -52,7 +52,7 @@ export default function RoomCard({ room, joined = false }: RoomCardProps) {
         </p>
       ) : (
         <div className="absolute bottom-[13px] left-1/2 flex -translate-x-1/2 flex-col items-center gap-1.5 font-satoshi text-white">
-          <CountdownRow countdown={countdown} />
+          <CountdownRow countdown={countdown} size="compact" />
           <p className="text-[14px] opacity-65">{room.date}</p>
         </div>
       )}
