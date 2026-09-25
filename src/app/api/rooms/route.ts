@@ -17,6 +17,27 @@ import { isCountryCode, setParticipantCountry } from "@/lib/roomCountry";
 // corresponding to roughly a 4MB source image.
 const MAX_IMAGE_DATA_URL_LENGTH = 5_600_000;
 
+const MAX_DESCRIPTION_LENGTH = 1000;
+// Mirrors the "15 characters max" hint shown under the CTA Text field.
+const MAX_CTA_TEXT_LENGTH = 15;
+const MAX_CTA_LINK_LENGTH = 500;
+
+type OptionalTextField = { value: string | null; error?: string };
+
+/** Trims an optional string field down to null-or-non-empty, enforcing a max
+ * length — shared shape for description/CTA Text/CTA Link, which are all
+ * "leave it blank or give me a valid string" fields. */
+function parseOptionalText(raw: unknown, maxLength: number, label: string): OptionalTextField {
+  if (raw === null || raw === undefined || raw === "") return { value: null };
+  if (typeof raw !== "string") return { value: null, error: `Invalid ${label}.` };
+  const trimmed = raw.trim();
+  if (!trimmed) return { value: null };
+  if (trimmed.length > maxLength) {
+    return { value: null, error: `${label} must be ${maxLength} characters or fewer.` };
+  }
+  return { value: trimmed };
+}
+
 export async function GET() {
   const rooms = await listRooms();
   return NextResponse.json({ rooms });
@@ -38,7 +59,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
-  const { name, date, time: rawTime, category, imageUrl } = (body ?? {}) as Record<string, unknown>;
+  const {
+    name,
+    date,
+    time: rawTime,
+    category,
+    imageUrl,
+    description: rawDescription,
+    ctaText: rawCtaText,
+    ctaLink: rawCtaLink,
+  } = (body ?? {}) as Record<string, unknown>;
 
   if (typeof name !== "string" || !name.trim()) {
     return NextResponse.json({ error: "Room name is required." }, { status: 400 });
@@ -76,6 +106,28 @@ export async function POST(request: Request) {
     );
   }
 
+  const description = parseOptionalText(rawDescription, MAX_DESCRIPTION_LENGTH, "Description");
+  if (description.error) {
+    return NextResponse.json({ error: description.error }, { status: 400 });
+  }
+  const ctaText = parseOptionalText(rawCtaText, MAX_CTA_TEXT_LENGTH, "CTA Text");
+  if (ctaText.error) {
+    return NextResponse.json({ error: ctaText.error }, { status: 400 });
+  }
+  const ctaLink = parseOptionalText(rawCtaLink, MAX_CTA_LINK_LENGTH, "CTA Link");
+  if (ctaLink.error) {
+    return NextResponse.json({ error: ctaLink.error }, { status: 400 });
+  }
+  // The CTA only makes sense attached to a description — the create-room UI
+  // already keeps these fields disabled until one is entered, this is just
+  // the server-side backstop for that rule.
+  if (!description.value && (ctaText.value || ctaLink.value)) {
+    return NextResponse.json(
+      { error: "Add a description before setting a CTA." },
+      { status: 400 },
+    );
+  }
+
   try {
     const countryCode = headers().get("x-vercel-ip-country");
     const room = await createRoom({
@@ -87,6 +139,9 @@ export async function POST(request: Request) {
       createdBy: session.user.email,
       createdByLabel: session.user.name ?? session.user.email,
       createdByCountry: isCountryCode(countryCode) ? countryCode : null,
+      description: description.value,
+      ctaText: ctaText.value,
+      ctaLink: ctaLink.value,
     });
 
     // The creator is automatically a participant of their own room — also

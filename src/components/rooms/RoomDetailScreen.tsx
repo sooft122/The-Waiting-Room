@@ -11,6 +11,7 @@ import RoomEnergyBar from "@/components/rooms/RoomEnergyBar";
 import RoomChat from "@/components/rooms/RoomChat";
 import EditRoomModal from "@/components/rooms/EditRoomModal";
 import CountriesCard from "@/components/rooms/CountriesCard";
+import RoomDescriptionCard from "@/components/rooms/RoomDescriptionCard";
 import { CountdownRow } from "@/components/rooms/CountdownUnits";
 import { useCountdown } from "@/hooks/useCountdown";
 import { useStaggerEntrance } from "@/hooks/useStaggerEntrance";
@@ -98,6 +99,7 @@ export default function RoomDetailScreen({
   const countdown = useCountdown(getRoomEndTime(room).toISOString());
   const [copied, setCopied] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [activeTab, setActiveTab] = useState<"overview" | "description">("overview");
 
   // Everything here that anyone else in the room can change just by using
   // it (joining, voting, checking in) — kept separate from the props above,
@@ -161,9 +163,11 @@ export default function RoomDetailScreen({
   const endedDividerEntrance = entrance();
   const endedStatsEntrance = entrance();
   const endedShareEntrance = entrance();
+  const tabsEntrance = entrance();
   const moodCardEntrance = entrance();
   const lobbyCardEntrance = entrance();
   const countriesCardEntrance = entrance();
+  const descriptionCardEntrance = entrance();
 
   const shareUrl = typeof window !== "undefined" ? `${window.location.origin}/rooms/${room.id}` : "";
 
@@ -436,6 +440,37 @@ export default function RoomDetailScreen({
       </div>
 
       {!hasEnded ? (
+        <div className={`pt-[10px] ${ALIGNED_CONTAINER_CLASS} ${tabsEntrance.className}`} style={tabsEntrance.style}>
+          <div className="flex items-center gap-[7px]">
+            <button
+              type="button"
+              onClick={() => setActiveTab("overview")}
+              className={`rounded-[30px] px-[14px] py-[10px] font-satoshi text-[14px] ${
+                activeTab === "overview"
+                  ? "bg-gradient-to-b from-[#a8a8a8] to-[#d3d3d3] text-black"
+                  : "bg-[#1d1d1d] text-[#d0d0d0] opacity-65"
+              }`}
+            >
+              Overview
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("description")}
+              className={`rounded-[30px] px-[14px] py-[10px] font-satoshi text-[14px] ${
+                activeTab === "description"
+                  ? "bg-gradient-to-b from-[#a8a8a8] to-[#d3d3d3] text-black"
+                  : "bg-[#1d1d1d] text-[#d0d0d0] opacity-65"
+              }`}
+            >
+              Description
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="h-[10px]" />
+      )}
+
+      {!hasEnded && activeTab === "overview" ? (
         <div className={`flex flex-col gap-[10px] py-[10px] ${ALIGNED_CONTAINER_CLASS} lg:flex-row`}>
           <div className={`flex w-full lg:w-auto ${moodCardEntrance.className}`} style={moodCardEntrance.style}>
             <RoomMoodCard
@@ -458,16 +493,27 @@ export default function RoomDetailScreen({
             />
           </div>
         </div>
-      ) : (
-        <div className="h-[10px]" />
-      )}
+      ) : null}
 
-      {!hasEnded ? (
+      {!hasEnded && activeTab === "overview" ? (
         <div
           className={`pb-[10px] ${ALIGNED_CONTAINER_CLASS} ${countriesCardEntrance.className}`}
           style={countriesCardEntrance.style}
         >
           <CountriesCard countries={live.countries} />
+        </div>
+      ) : null}
+
+      {!hasEnded && activeTab === "description" ? (
+        <div
+          className={`py-[10px] ${ALIGNED_CONTAINER_CLASS} ${descriptionCardEntrance.className}`}
+          style={descriptionCardEntrance.style}
+        >
+          <RoomDescriptionCard
+            description={room.description}
+            ctaText={room.ctaText}
+            ctaLink={room.ctaLink}
+          />
         </div>
       ) : null}
 

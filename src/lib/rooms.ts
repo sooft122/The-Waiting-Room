@@ -46,6 +46,15 @@ export type Room = {
    * participants hash at read time, never stored/trusted as a static field. */
   participantCount: number;
   createdAt: string;
+  /** Optional longer write-up shown on the room page's "Description" tab.
+   * Null for rooms created before this field existed, or when the creator
+   * left it blank. */
+  description: string | null;
+  /** Optional redirect button shown under the description — both null
+   * unless the creator filled in a description first (the create-room
+   * form only allows these once a description is present). */
+  ctaText: string | null;
+  ctaLink: string | null;
 };
 
 export type CreateRoomInput = {
@@ -57,6 +66,9 @@ export type CreateRoomInput = {
   createdBy: string;
   createdByLabel: string;
   createdByCountry: string | null;
+  description: string | null;
+  ctaText: string | null;
+  ctaLink: string | null;
 };
 
 export type UpdateRoomInput = {
