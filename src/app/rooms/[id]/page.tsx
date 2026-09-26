@@ -8,6 +8,7 @@ import { getMoodBreakdown, getViewerMood } from "@/lib/roomMood";
 import { getRoomEnergy } from "@/lib/roomEnergy";
 import { getGlowingSeeds, getLastSeen } from "@/lib/roomPresence";
 import { getCountryBreakdown } from "@/lib/roomCountry";
+import { getPushConfig } from "@/lib/pushConfig";
 import RoomDetailScreen from "@/components/rooms/RoomDetailScreen";
 
 export const dynamic = "force-dynamic";
@@ -99,6 +100,7 @@ export default async function RoomPage({ params }: { params: { id: string } }) {
       analytics={analytics}
       glowingDots={glowingDots}
       countries={countries}
+      pushPublicKey={getPushConfig()?.publicKey ?? null}
     />
   );
 }

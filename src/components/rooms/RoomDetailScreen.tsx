@@ -35,6 +35,8 @@ type RoomDetailScreenProps = {
   analytics: RoomAnalytics | null;
   glowingDots: GlowingSeed[];
   countries: CountryBreakdown[];
+  /** VAPID public key for new-message notifications — null when they aren't set up. */
+  pushPublicKey: string | null;
 };
 
 // How often every viewer polls for what everyone ELSE in the room has done
@@ -95,6 +97,7 @@ export default function RoomDetailScreen({
   analytics,
   glowingDots,
   countries,
+  pushPublicKey,
 }: RoomDetailScreenProps) {
   const countdown = useCountdown(getRoomEndTime(room).toISOString());
   const [copied, setCopied] = useState(false);
@@ -517,7 +520,9 @@ export default function RoomDetailScreen({
         </div>
       ) : null}
 
-      {!hasEnded ? <RoomChat roomId={room.id} hasJoined={hasJoined} /> : null}
+      {!hasEnded ? (
+        <RoomChat roomId={room.id} hasJoined={hasJoined} pushPublicKey={pushPublicKey} />
+      ) : null}
 
       {editing ? (
         <EditRoomModal room={room} onClose={() => setEditing(false)} onSaved={() => setEditing(false)} />

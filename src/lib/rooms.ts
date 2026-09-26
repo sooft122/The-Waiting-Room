@@ -3,6 +3,7 @@ import { clearMoodVote, getMoodBreakdown, type Mood, type MoodBreakdown } from "
 import { clearPresence } from "./roomPresence";
 import { clearChatCount } from "./roomChat";
 import { clearParticipantCountry } from "./roomCountry";
+import { clearRoomAlerts, clearRoomAlertsForIdentity } from "./roomPush";
 import { getRoomEndTime } from "./roomTime";
 
 export { getRoomEndTime, parseRoomTime } from "./roomTime";
@@ -164,6 +165,7 @@ export async function deleteRoom(id: string): Promise<void> {
     redis.del(roomKey(id)),
     redis.lrem(ROOMS_INDEX_KEY, 0, id),
     redis.del(participantsKey(id)),
+    clearRoomAlerts(id),
   ]);
 }
 
@@ -223,7 +225,8 @@ export async function joinRoom(identity: string, roomId: string): Promise<void> 
  * longer waiting shouldn't keep influencing a room's mood, energy, or
  * "where the world is waiting from". Their chat messages and assigned
  * color stay put — leaving doesn't rewrite the room's chat history, only
- * the live "currently contributing" signals. */
+ * the live "currently contributing" signals. Their new-message alerts for
+ * the room stop too. */
 export async function leaveRoom(identity: string, roomId: string): Promise<void> {
   const redis = getRedis();
   if (!redis) throw new Error("Room storage is not configured.");
@@ -235,6 +238,7 @@ export async function leaveRoom(identity: string, roomId: string): Promise<void>
     clearPresence(roomId, identity),
     clearChatCount(roomId, identity),
     clearParticipantCountry(roomId, identity),
+    clearRoomAlertsForIdentity(roomId, identity),
   ]);
 }
 

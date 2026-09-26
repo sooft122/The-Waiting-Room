@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { getServerSession } from "next-auth/next";
+import { waitUntil } from "@vercel/functions";
 import { authOptions } from "@/lib/auth";
 import { getRoom, hasJoinedRoom } from "@/lib/rooms";
 import { getOrCreateProfile } from "@/lib/profile";
 import { getCooldownRemainingMs, getMessages, sendMessage, toPublicMessage } from "@/lib/roomChat";
+import { ROOM_VIEWING_HEADER } from "@/lib/chatNotifications";
+import { markViewingRoom } from "@/lib/roomPush";
+import { notifyRoomChat } from "@/lib/roomChatNotifier";
 
 export const dynamic = "force-dynamic";
 
@@ -14,14 +18,18 @@ function resolveIdentity(sessionEmail: string | null | undefined, anonId: string
   return null;
 }
 
-export async function GET(_request: Request, { params }: { params: { id: string } }) {
+export async function GET(request: Request, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
   const anonId = headers().get("x-anon-id");
   const resolved = resolveIdentity(session?.user?.email, anonId);
+  // A joined viewer's visible room page says so every so often, so
+  // new-message alerts skip people who are looking at the room right now.
+  const viewing = request.headers.get(ROOM_VIEWING_HEADER) === "1";
 
   const [messages, cooldownRemainingMs] = await Promise.all([
     getMessages(params.id),
     resolved ? getCooldownRemainingMs(params.id, resolved.identity) : Promise.resolve(0),
+    resolved && viewing ? markViewingRoom(params.id, resolved.identity) : null,
   ]);
 
   return NextResponse.json(
@@ -72,6 +80,11 @@ export async function POST(request: Request, { params }: { params: { id: string 
       { status: result.retryAfterMs !== undefined ? 429 : 503 },
     );
   }
+
+  // Alerts go out to everyone else who turned notifications on, without
+  // holding up the sender — waitUntil keeps the function alive on Vercel
+  // until they're sent.
+  waitUntil(notifyRoomChat(room, result.message));
 
   return NextResponse.json({ message: toPublicMessage(result.message), cooldownMs: result.cooldownMs });
 }

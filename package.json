@@ -11,15 +11,18 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.128.0",
     "@upstash/redis": "^1.38.4",
+    "@vercel/functions": "^2.2.13",
     "next": "14.2.35",
     "next-auth": "^4.24.15",
     "react": "^18",
-    "react-dom": "^18"
+    "react-dom": "^18",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "@types/web-push": "^3.6.4",
     "eslint": "^8",
     "eslint-config-next": "14.2.35",
     "postcss": "^8",

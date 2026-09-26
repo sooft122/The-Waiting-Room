@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { FormEvent, PointerEvent } from "react";
+import { ROOM_VIEWING_HEADER, ROOM_VIEWING_REPORT_MS } from "@/lib/chatNotifications";
+import RoomNotificationToggle from "./RoomNotificationToggle";
 
 type ChatMessage = {
   id: string;
@@ -14,6 +16,8 @@ type ChatMessage = {
 type RoomChatProps = {
   roomId: string;
   hasJoined: boolean;
+  /** VAPID public key for new-message notifications — null when they aren't set up. */
+  pushPublicKey: string | null;
 };
 
 const OPEN_POLL_INTERVAL_MS = 2000;
@@ -29,7 +33,7 @@ const SEEN_STORAGE_KEY_PREFIX = "waiting-room:chat-last-seen:";
 // transform-origin below), rather than just fading in place.
 const TRANSITION_CLASS = "transition-[opacity,transform] duration-300 ease-out";
 
-export default function RoomChat({ roomId, hasJoined }: RoomChatProps) {
+export default function RoomChat({ roomId, hasJoined, pushPublicKey }: RoomChatProps) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [text, setText] = useState("");
@@ -46,6 +50,7 @@ export default function RoomChat({ roomId, hasJoined }: RoomChatProps) {
 
   const closeTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const listRef = useRef<HTMLDivElement>(null);
+  const lastViewingReportRef = useRef(0);
   const seenStorageKey = `${SEEN_STORAGE_KEY_PREFIX}${roomId}`;
 
   useEffect(() => {
@@ -112,8 +117,19 @@ export default function RoomChat({ roomId, hasJoined }: RoomChatProps) {
     let cancelled = false;
 
     async function poll() {
+      // Now and then, a joined viewer's visible page tells the server it's
+      // looking, so new-message notifications skip them while they are.
+      const reportViewing =
+        hasJoined &&
+        document.visibilityState === "visible" &&
+        Date.now() - lastViewingReportRef.current >= ROOM_VIEWING_REPORT_MS;
+      if (reportViewing) lastViewingReportRef.current = Date.now();
+
       try {
-        const response = await fetch(`/api/rooms/${roomId}/chat`);
+        const response = await fetch(
+          `/api/rooms/${roomId}/chat`,
+          reportViewing ? { headers: { [ROOM_VIEWING_HEADER]: "1" } } : undefined,
+        );
         const data = await response.json();
         if (cancelled) return;
         if (Array.isArray(data.messages)) setMessages(data.messages);
@@ -131,7 +147,7 @@ export default function RoomChat({ roomId, hasJoined }: RoomChatProps) {
       cancelled = true;
       clearInterval(id);
     };
-  }, [open, roomId]);
+  }, [open, roomId, hasJoined]);
 
   // Whenever the panel is open, the newest loaded message counts as read —
   // covers both opening on an existing backlog and new messages streaming
@@ -253,6 +269,8 @@ export default function RoomChat({ roomId, hasJoined }: RoomChatProps) {
         }`}
       >
         <div className="chat-panel-backdrop flex max-h-[80vh] flex-col justify-end gap-[18px] overflow-hidden rounded-[20px] p-4">
+          <RoomNotificationToggle roomId={roomId} hasJoined={hasJoined} publicKey={pushPublicKey} />
+
           <div
             ref={listRef}
             className="chat-message-list flex max-h-[55vh] flex-col gap-[9px] overflow-y-auto px-1 font-satoshi text-[12px] leading-normal"
