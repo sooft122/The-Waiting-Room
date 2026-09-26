@@ -20,6 +20,31 @@ type RoomSectionRowProps = {
   joinedRoomIds?: Set<string>;
 };
 
+// Same glyph as /icons/arrow-right-02.svg, but stroked with currentColor so
+// it follows the link's own dim-then-white text color. The file version is
+// hard-coded black (right for the light Join Room button that also uses
+// it), which made it near-invisible next to this dark row's text.
+function ArrowRightIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg aria-hidden viewBox="0 0 14 14" fill="none" className={`size-3.5 shrink-0 ${className}`}>
+      <path
+        d="M10.7917 7H2.91667"
+        stroke="currentColor"
+        strokeWidth="0.875"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M7.58333 10.5C7.58333 10.5 11.0833 7.92231 11.0833 7C11.0833 6.07763 7.58333 3.5 7.58333 3.5"
+        stroke="currentColor"
+        strokeWidth="0.875"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export default function RoomSectionRow({
   title,
   slug,
@@ -49,8 +74,7 @@ export default function RoomSectionRow({
               className="flex items-center gap-1 font-satoshi text-[12px] text-white/60 hover:text-white"
             >
               <span>View all {rooms.length}</span>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img alt="" className="size-3.5" src="/icons/arrow-right-02.svg" />
+              <ArrowRightIcon />
             </Link>
           ) : (
             <button
@@ -59,12 +83,7 @@ export default function RoomSectionRow({
               className="flex items-center gap-1 font-satoshi text-[12px] text-white/60 hover:text-white"
             >
               <span>{expanded ? "Show less" : `View all ${rooms.length}`}</span>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                alt=""
-                className={`size-3.5 transition-transform ${expanded ? "-rotate-90" : ""}`}
-                src="/icons/arrow-right-02.svg"
-              />
+              <ArrowRightIcon className={`transition-transform ${expanded ? "-rotate-90" : ""}`} />
             </button>
           )
         ) : null}
