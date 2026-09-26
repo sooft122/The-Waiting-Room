@@ -4,7 +4,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { getRoom, hasJoinedRoom } from "@/lib/rooms";
 import { getOrCreateProfile } from "@/lib/profile";
-import { getCooldownRemainingMs, getMessages, sendMessage } from "@/lib/roomChat";
+import { getCooldownRemainingMs, getMessages, sendMessage, toPublicMessage } from "@/lib/roomChat";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +25,7 @@ export async function GET(_request: Request, { params }: { params: { id: string 
   ]);
 
   return NextResponse.json(
-    { messages, cooldownRemainingMs },
+    { messages: messages.map(toPublicMessage), cooldownRemainingMs },
     { headers: { "Cache-Control": "no-store" } },
   );
 }
@@ -73,5 +73,5 @@ export async function POST(request: Request, { params }: { params: { id: string 
     );
   }
 
-  return NextResponse.json({ message: result.message, cooldownMs: result.cooldownMs });
+  return NextResponse.json({ message: toPublicMessage(result.message), cooldownMs: result.cooldownMs });
 }

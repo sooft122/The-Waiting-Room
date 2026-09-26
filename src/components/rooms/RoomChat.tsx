@@ -5,7 +5,6 @@ import type { FormEvent } from "react";
 
 type ChatMessage = {
   id: string;
-  identity: string;
   displayName: string;
   color: string;
   text: string;

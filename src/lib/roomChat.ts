@@ -19,6 +19,20 @@ export type ChatMessage = {
   createdAt: string;
 };
 
+/** A message as other people's browsers see it — without the sender's
+ * identity, which for a signed-in account is their email address. */
+export type PublicChatMessage = Omit<ChatMessage, "identity">;
+
+export function toPublicMessage(message: ChatMessage): PublicChatMessage {
+  return {
+    id: message.id,
+    displayName: message.displayName,
+    color: message.color,
+    text: message.text,
+    createdAt: message.createdAt,
+  };
+}
+
 // A wide, high-contrast-on-dark palette — assigned once per identity per
 // room (not per message), preferring a color nobody else in the room is
 // currently using yet, so two people rarely end up looking the same.
