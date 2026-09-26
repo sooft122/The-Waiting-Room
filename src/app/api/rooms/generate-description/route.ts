@@ -3,19 +3,14 @@ import { getServerSession } from "next-auth/next";
 import Anthropic from "@anthropic-ai/sdk";
 import { authOptions } from "@/lib/auth";
 import { getAnthropicClient } from "@/lib/anthropic";
+import { generateTemplateDescription } from "@/lib/descriptionTemplate";
 
 const MAX_NAME_LENGTH = 100;
 const MAX_DESCRIPTION_CHARS = 400;
+const MAX_PREVIOUS_LENGTH = 1000;
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 export async function POST(request: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.email) {
-    return NextResponse.json(
-      { error: "Sign in with Google to generate a description." },
-      { status: 401 },
-    );
-  }
-
   let body: unknown;
   try {
     body = await request.json();
@@ -23,22 +18,39 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
-  const { name, category } = (body ?? {}) as Record<string, unknown>;
+  const { name, category, date, previous } = (body ?? {}) as Record<string, unknown>;
   if (typeof name !== "string" || !name.trim()) {
     return NextResponse.json({ error: "A room name is required." }, { status: 400 });
   }
   if (name.trim().length > MAX_NAME_LENGTH) {
     return NextResponse.json({ error: "Room name is too long." }, { status: 400 });
   }
+  const roomName = name.trim();
   const categoryLabel = typeof category === "string" && category.trim() ? category.trim() : null;
+  const isoDate = typeof date === "string" && ISO_DATE.test(date) ? date : null;
+  const previousText =
+    typeof previous === "string" ? previous.slice(0, MAX_PREVIOUS_LENGTH) : null;
+
+  // The free, template-written description — used unless Claude is both
+  // configured and available to this viewer, and as the fallback if the
+  // Claude request fails, so the button always produces something.
+  const templateResponse = () =>
+    NextResponse.json({
+      description: generateTemplateDescription({
+        name: roomName,
+        category: categoryLabel,
+        date: isoDate,
+        previous: previousText,
+      }),
+    });
 
   const anthropic = getAnthropicClient();
-  if (!anthropic) {
-    return NextResponse.json(
-      { error: "AI generation isn't configured on the server." },
-      { status: 503 },
-    );
-  }
+  if (!anthropic) return templateResponse();
+
+  // Paid API credits are reserved for signed-in creators; everyone else
+  // still gets a template description rather than an error.
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.email) return templateResponse();
 
   try {
     const message = await anthropic.messages.create({
@@ -55,8 +67,8 @@ export async function POST(request: Request) {
         {
           role: "user",
           content: categoryLabel
-            ? `Room name: "${name.trim()}"\nCategory: ${categoryLabel}`
-            : `Room name: "${name.trim()}"`,
+            ? `Room name: "${roomName}"\nCategory: ${categoryLabel}`
+            : `Room name: "${roomName}"`,
         },
       ],
     });
@@ -65,13 +77,11 @@ export async function POST(request: Request) {
       (block): block is Anthropic.TextBlock => block.type === "text",
     );
     const description = textBlock?.text.trim();
-    if (!description) {
-      return NextResponse.json({ error: "The AI didn't return a description." }, { status: 502 });
-    }
+    if (!description) return templateResponse();
 
     return NextResponse.json({ description: description.slice(0, MAX_DESCRIPTION_CHARS) });
   } catch (err) {
-    console.error("generate-description: Anthropic request failed", err);
-    return NextResponse.json({ error: "Description generation failed — please try again." }, { status: 502 });
+    console.error("generate-description: Anthropic request failed, using a template instead", err);
+    return templateResponse();
   }
 }

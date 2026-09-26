@@ -167,7 +167,13 @@ export default function CreateRoomModal({ onClose, onCreated }: CreateRoomModalP
       const response = await fetch("/api/rooms/generate-description", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), category: category || undefined }),
+        body: JSON.stringify({
+          name: name.trim(),
+          category: category || undefined,
+          date: date || undefined,
+          // lets the server hand back a different description on a re-roll
+          previous: description.trim() || undefined,
+        }),
       });
       const data = await response.json();
       if (!response.ok) {
