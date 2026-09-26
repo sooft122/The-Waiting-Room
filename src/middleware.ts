@@ -73,6 +73,11 @@ export async function middleware(request: NextRequest) {
   return response;
 }
 
+// Static files are skipped: there's no visitor to set up for them, and one
+// fetched in the background without cookies (the manifest or service worker,
+// say) would otherwise be handed a brand new Anonymous number.
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|icons/|images/).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|icons/|images/|manifest.webmanifest|sw.js|apple-icon).*)",
+  ],
 };

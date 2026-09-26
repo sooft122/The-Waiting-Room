@@ -35,6 +35,17 @@ export const metadata: Metadata = {
     title: "The Waiting Room",
     description: SITE_DESCRIPTION,
   },
+  // Opened from the Home Screen, the site runs full-screen like an app, under
+  // a short name instead of whichever page's full title it was saved from.
+  appleWebApp: {
+    capable: true,
+    title: "Waiting Room",
+    statusBarStyle: "black",
+  },
+  // The standard twin of Apple's tag above — Chrome warns without it.
+  other: {
+    "mobile-web-app-capable": "yes",
+  },
 };
 
 export const viewport: Viewport = {
