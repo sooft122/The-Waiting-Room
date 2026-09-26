@@ -10,7 +10,9 @@ import { compressImageToDataUrl } from "@/lib/compressImage";
 import { findLikelyDuplicates } from "@/lib/roomDuplicates";
 import type { DuplicateMatch } from "@/lib/roomDuplicates";
 import { getRoomEndTime } from "@/lib/roomTime";
+import { MAX_CTA_TEXT_LENGTH } from "@/lib/roomDescriptionFields";
 import ModalShell from "./ModalShell";
+import RoomDescriptionFields from "./RoomDescriptionFields";
 
 // How long to wait after the last keystroke before checking for
 // near-duplicate rooms — avoids re-running the comparison on every
@@ -26,12 +28,7 @@ const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
 // after a round trip to the server.
 const MAX_IMAGE_DATA_URL_LENGTH = 5_600_000;
 
-// Mirrors MAX_CTA_TEXT_LENGTH in src/app/api/rooms/route.ts.
-const MAX_CTA_TEXT_LENGTH = 15;
-
-type FormErrors = Partial<
-  Record<"image" | "name" | "date" | "category" | "description" | "ctaText" | "form", string>
->;
+type FormErrors = Partial<Record<"image" | "name" | "date" | "category" | "ctaText" | "form", string>>;
 
 type CreateRoomModalProps = {
   onClose: () => void;
@@ -53,7 +50,6 @@ export default function CreateRoomModal({ onClose, onCreated }: CreateRoomModalP
   const [description, setDescription] = useState("");
   const [ctaText, setCtaText] = useState("");
   const [ctaLink, setCtaLink] = useState("");
-  const [generatingDescription, setGeneratingDescription] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [existingRooms, setExistingRooms] = useState<Room[]>([]);
@@ -85,16 +81,6 @@ export default function CreateRoomModal({ onClose, onCreated }: CreateRoomModalP
     }, DUPLICATE_CHECK_DEBOUNCE_MS);
     return () => clearTimeout(id);
   }, [name, date, existingRooms]);
-
-  // The CTA only makes sense attached to a description — once the creator
-  // clears it back out, drop whatever they'd put in CTA Text/Link too,
-  // rather than silently submitting a CTA the UI no longer shows as editable.
-  useEffect(() => {
-    if (!description.trim()) {
-      setCtaText("");
-      setCtaLink("");
-    }
-  }, [description]);
 
   // Called once per render, in render order, so each field gets the next
   // stagger step — capture each result once and reuse it (never call twice
@@ -157,38 +143,6 @@ export default function CreateRoomModal({ onClose, onCreated }: CreateRoomModalP
     }
     if (!category) nextErrors.category = "Please select a category.";
     return nextErrors;
-  }
-
-  async function handleGenerateDescription() {
-    if (!name.trim() || generatingDescription) return;
-    setGeneratingDescription(true);
-    setErrors((prev) => ({ ...prev, description: undefined }));
-    try {
-      const response = await fetch("/api/rooms/generate-description", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: name.trim(),
-          category: category || undefined,
-          date: date || undefined,
-          // lets the server hand back a different description on a re-roll
-          previous: description.trim() || undefined,
-        }),
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        setErrors((prev) => ({
-          ...prev,
-          description: data.error ?? "Could not generate a description.",
-        }));
-        return;
-      }
-      setDescription(typeof data.description === "string" ? data.description : "");
-    } catch {
-      setErrors((prev) => ({ ...prev, description: "Network error — please try again." }));
-    } finally {
-      setGeneratingDescription(false);
-    }
   }
 
   async function handleSubmit(event: React.FormEvent) {
@@ -516,87 +470,20 @@ export default function CreateRoomModal({ onClose, onCreated }: CreateRoomModalP
           </>
         ) : (
           <>
-            <div className="flex w-full flex-col gap-3.5">
-              <div
-                className={`flex w-full flex-col gap-1.5 ${descriptionEntrance.className}`}
-                style={descriptionEntrance.style}
-              >
-                <div className="flex w-full items-center justify-between">
-                  <label htmlFor="room-description" className="font-satoshi text-[12px] text-white">
-                    Description <span className="text-white/40">(Optional)</span>
-                  </label>
-                  <button
-                    type="button"
-                    onClick={handleGenerateDescription}
-                    disabled={generatingDescription || !name.trim()}
-                    className="flex items-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img alt="" className="size-[15px]" src="/icons/artificial-intelligence-08.svg" />
-                    <span className="font-satoshi text-[12px] text-white">
-                      {generatingDescription ? "Generating…" : "Generate using AI"}
-                    </span>
-                  </button>
-                </div>
-                <textarea
-                  id="room-description"
-                  value={description}
-                  onChange={(event) => setDescription(event.target.value)}
-                  placeholder="Describe this event..."
-                  maxLength={1000}
-                  rows={5}
-                  className="h-[131px] w-full resize-none rounded-[8px] border border-[#2b2d30] bg-[#1b1c21] p-2.5 font-satoshi text-[12px] text-white placeholder:text-white/50 focus:outline-none focus:ring-1 focus:ring-white/30"
-                />
-                {errors.description ? (
-                  <p className="font-inter text-[11px] text-red-400">{errors.description}</p>
-                ) : null}
-              </div>
-
-              <div
-                className={`flex w-full flex-col gap-1.5 ${ctaTextEntrance.className}`}
-                style={ctaTextEntrance.style}
-              >
-                <div className="flex h-4 w-full items-center justify-between">
-                  <label htmlFor="room-cta-text" className="font-satoshi text-[12px] text-white">
-                    CTA Text <span className="text-white/40">(Optional)</span>
-                  </label>
-                  <span className="font-satoshi text-[12px] text-white/50">
-                    {MAX_CTA_TEXT_LENGTH} characters max
-                  </span>
-                </div>
-                <input
-                  id="room-cta-text"
-                  type="text"
-                  value={ctaText}
-                  onChange={(event) => setCtaText(event.target.value)}
-                  placeholder="What should your redirect button say..."
-                  maxLength={MAX_CTA_TEXT_LENGTH}
-                  disabled={!description.trim()}
-                  className="h-9 w-full rounded-[8px] border border-[#2b2d30] bg-[#1b1c21] px-2.5 font-satoshi text-[12px] text-white placeholder:text-white/50 focus:outline-none focus:ring-1 focus:ring-white/30 disabled:cursor-not-allowed disabled:opacity-40"
-                />
-                {errors.ctaText ? (
-                  <p className="font-inter text-[11px] text-red-400">{errors.ctaText}</p>
-                ) : null}
-              </div>
-
-              <div
-                className={`flex w-full flex-col gap-1.5 ${ctaLinkEntrance.className}`}
-                style={ctaLinkEntrance.style}
-              >
-                <label htmlFor="room-cta-link" className="font-satoshi text-[12px] text-white">
-                  CTA Link <span className="text-white/40">(Optional)</span>
-                </label>
-                <input
-                  id="room-cta-link"
-                  type="url"
-                  value={ctaLink}
-                  onChange={(event) => setCtaLink(event.target.value)}
-                  placeholder="Where should your link redirect to..."
-                  disabled={!description.trim()}
-                  className="h-9 w-full rounded-[8px] border border-[#2b2d30] bg-[#1b1c21] px-2.5 font-satoshi text-[12px] text-white placeholder:text-white/50 focus:outline-none focus:ring-1 focus:ring-white/30 disabled:cursor-not-allowed disabled:opacity-40"
-                />
-              </div>
-            </div>
+            <RoomDescriptionFields
+              idPrefix="room"
+              roomName={name}
+              category={category}
+              date={date}
+              description={description}
+              onDescriptionChange={setDescription}
+              ctaText={ctaText}
+              onCtaTextChange={setCtaText}
+              ctaLink={ctaLink}
+              onCtaLinkChange={setCtaLink}
+              ctaTextError={errors.ctaText}
+              entrances={{ description: descriptionEntrance, ctaText: ctaTextEntrance, ctaLink: ctaLinkEntrance }}
+            />
 
             {errors.form ? (
               <p className="w-full font-inter text-[12px] text-red-400">{errors.form}</p>

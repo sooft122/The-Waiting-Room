@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { deleteRoom, getRoom, getRoomEndTime, isRoomCategory, parseRoomTime, updateRoom } from "@/lib/rooms";
+import { parseDescriptionFields } from "@/lib/roomDescriptionFields";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +28,8 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   } catch {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
-  const { name, date, time: rawTime, category, imageUrl } = (body ?? {}) as Record<string, unknown>;
+  const fields = (body ?? {}) as Record<string, unknown>;
+  const { name, date, time: rawTime, category, imageUrl } = fields;
 
   if (typeof name !== "string" || !name.trim()) {
     return NextResponse.json({ error: "Room name is required." }, { status: 400 });
@@ -65,12 +67,18 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     );
   }
 
+  const descriptionFields = parseDescriptionFields(fields);
+  if (!descriptionFields.ok) {
+    return NextResponse.json({ error: descriptionFields.error }, { status: 400 });
+  }
+
   const updated = await updateRoom(params.id, {
     name: name.trim(),
     date,
     time,
     category,
     imageUrl,
+    ...descriptionFields.fields,
   });
 
   return NextResponse.json({ room: updated });

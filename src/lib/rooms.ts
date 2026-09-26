@@ -77,6 +77,9 @@ export type UpdateRoomInput = {
   time: string | null;
   category: RoomCategory;
   imageUrl: string;
+  description: string | null;
+  ctaText: string | null;
+  ctaLink: string | null;
 };
 
 export type RoomAnalytics = {

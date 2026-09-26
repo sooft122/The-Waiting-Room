@@ -1,3 +1,5 @@
+import { isSafeCtaLink } from "@/lib/roomDescriptionFields";
+
 type RoomDescriptionCardProps = {
   description: string | null;
   ctaText: string | null;
@@ -20,7 +22,7 @@ export default function RoomDescriptionCard({
           <p className="whitespace-pre-wrap font-figtree text-[14px] leading-[1.2] text-white/70">
             {description}
           </p>
-          {ctaText && ctaLink ? (
+          {ctaText && ctaLink && isSafeCtaLink(ctaLink) ? (
             <a
               href={ctaLink}
               target="_blank"
