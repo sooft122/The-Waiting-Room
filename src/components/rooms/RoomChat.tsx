@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { FormEvent } from "react";
+import type { FormEvent, PointerEvent } from "react";
 
 type ChatMessage = {
   id: string;
@@ -77,15 +77,26 @@ export default function RoomChat({ roomId, hasJoined }: RoomChatProps) {
     }
   }, []);
 
-  const handleMouseEnter = useCallback(() => {
-    clearCloseTimer();
-    setOpen(true);
-  }, [clearCloseTimer]);
+  // Hover-to-open is for a mouse only. A tap on a touch screen fires "enter"
+  // too, which opened the chat right before the tap's own click toggled it
+  // shut again — on phones a tap should simply toggle it.
+  const handlePointerEnter = useCallback(
+    (event: PointerEvent) => {
+      if (event.pointerType !== "mouse") return;
+      clearCloseTimer();
+      setOpen(true);
+    },
+    [clearCloseTimer],
+  );
 
-  const handleMouseLeave = useCallback(() => {
-    clearCloseTimer();
-    closeTimerRef.current = setTimeout(() => setOpen(false), AUTO_CLOSE_DELAY_MS);
-  }, [clearCloseTimer]);
+  const handlePointerLeave = useCallback(
+    (event: PointerEvent) => {
+      if (event.pointerType !== "mouse") return;
+      clearCloseTimer();
+      closeTimerRef.current = setTimeout(() => setOpen(false), AUTO_CLOSE_DELAY_MS);
+    },
+    [clearCloseTimer],
+  );
 
   const toggleOpen = useCallback(() => {
     clearCloseTimer();
@@ -214,8 +225,8 @@ export default function RoomChat({ roomId, hasJoined }: RoomChatProps) {
         <button
           type="button"
           onClick={toggleOpen}
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
+          onPointerEnter={handlePointerEnter}
+          onPointerLeave={handlePointerLeave}
           aria-label={open ? "Close chat" : "Open chat"}
           className="relative flex size-[50px] items-center justify-center overflow-hidden rounded-full shadow-[0px_4px_27px_0px_rgba(0,0,0,0.18)] active:scale-95"
           style={{ backgroundImage: "linear-gradient(180deg, #252628, #18191b)" }}
@@ -235,8 +246,8 @@ export default function RoomChat({ roomId, hasJoined }: RoomChatProps) {
       {/* Open state: message list + composer, growing out of the same
           bottom-right corner the icon sits in. */}
       <div
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
+        onPointerEnter={handlePointerEnter}
+        onPointerLeave={handlePointerLeave}
         className={`fixed bottom-6 right-5 z-30 w-[calc(100vw-40px)] max-w-[420px] origin-bottom-right sm:right-8 lg:right-10 ${TRANSITION_CLASS} ${
           open ? "translate-y-0 scale-100 opacity-100" : "pointer-events-none translate-y-4 scale-95 opacity-0"
         }`}
