@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
-import { getJoinedRoomIds, getRoomsByIds } from "@/lib/rooms";
+import { getJoinedAt, getJoinedRoomIds, getRoomEndTime, getRoomsByIds } from "@/lib/rooms";
 import ProfileScreen from "@/components/profile/ProfileScreen";
 
 export default async function ProfilePage() {
@@ -12,5 +12,15 @@ export default async function ProfilePage() {
   const joinedIds = identity ? await getJoinedRoomIds(identity) : [];
   const rooms = await getRoomsByIds(joinedIds);
 
-  return <ProfileScreen rooms={rooms} anonId={anonId} />;
+  // When this viewer joined each room and when that room's wait ends — the
+  // inputs to "Total Wait Time", which the screen keeps ticking live.
+  const joinedAts = identity
+    ? await Promise.all(rooms.map((room) => getJoinedAt(identity, room.id)))
+    : [];
+  const waits = rooms.flatMap((room, i) => {
+    const joinedAt = joinedAts[i];
+    return joinedAt ? [{ joinedAt, endsAt: getRoomEndTime(room).toISOString() }] : [];
+  });
+
+  return <ProfileScreen rooms={rooms} anonId={anonId} waits={waits} renderedAt={Date.now()} />;
 }

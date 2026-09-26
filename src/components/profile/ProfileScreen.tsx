@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
 import SiteHeader from "@/components/layout/SiteHeader";
@@ -14,11 +14,42 @@ import type { Room } from "@/lib/rooms";
 import ProfileAvatar from "./ProfileAvatar";
 import EditProfileNameModal from "./EditProfileNameModal";
 
+type WaitSpan = {
+  /** When this viewer joined the room (ISO). */
+  joinedAt: string;
+  /** When the room's wait ends (ISO) — the wait stops counting there. */
+  endsAt: string;
+};
+
 type ProfileScreenProps = {
   /** Rooms this identity has joined. */
   rooms: Room[];
   anonId: string | null;
+  /** One span per joined room, for "Total Wait Time". */
+  waits: WaitSpan[];
+  /** Server render time — the first paint's "now", so the total matches on hydration. */
+  renderedAt: number;
 };
+
+// How often the live total ticks forward while the page is open.
+const WAIT_TICK_MS = 30_000;
+
+/** Time spent waiting across every joined room: from joining until the
+ * room's wait ended, or until now for rooms still counting down. */
+function totalWaitMs(waits: WaitSpan[], now: number): number {
+  return waits.reduce((sum, wait) => {
+    const end = Math.min(now, Date.parse(wait.endsAt));
+    return sum + Math.max(0, end - Date.parse(wait.joinedAt));
+  }, 0);
+}
+
+function formatWaitTotal(ms: number): string {
+  const minutes = Math.floor(ms / 60_000);
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ${minutes % 60}m`;
+  return `${Math.floor(hours / 24)}d ${hours % 24}h`;
+}
 
 function formatJoinedDate(iso: string): string {
   const date = new Date(iso);
@@ -62,10 +93,17 @@ function TabButton({
   );
 }
 
-export default function ProfileScreen({ rooms, anonId }: ProfileScreenProps) {
+export default function ProfileScreen({ rooms, anonId, waits, renderedAt }: ProfileScreenProps) {
   const { profile: data, applyUpdate } = useProfileContext();
   const [activeTab, setActiveTab] = useState<"active" | "ended">("active");
   const [editOpen, setEditOpen] = useState(false);
+  const [now, setNow] = useState(renderedAt);
+
+  useEffect(() => {
+    setNow(Date.now());
+    const id = setInterval(() => setNow(Date.now()), WAIT_TICK_MS);
+    return () => clearInterval(id);
+  }, []);
 
   const entrance = useStaggerEntrance(70, 45, 8);
   const breadcrumbEntrance = entrance();
@@ -151,7 +189,7 @@ export default function ProfileScreen({ rooms, anonId }: ProfileScreenProps) {
               <div className="flex flex-col gap-2.5 font-satoshi text-[14px]">
                 <StatRow label="Time you Joined:" value={formatJoinedDate(data.profile.joinedAt)} />
                 <StatRow label="Total Room Joined:" value={String(rooms.length)} />
-                <StatRow label="Total Wait Time:" value="--" />
+                <StatRow label="Total Wait Time:" value={formatWaitTotal(totalWaitMs(waits, now))} />
               </div>
             </div>
 
