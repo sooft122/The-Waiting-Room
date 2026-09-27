@@ -7,7 +7,7 @@ export default function Hero() {
       {/* Its own wrapper, since the entrance animation also animates filter,
           which would override the timer's blur. */}
       <div className="animate-hero-in mb-[21px]">
-        <HeroTimer />
+        <HeroTimer renderedAt={Date.now()} />
       </div>
 
       <div className="flex w-full max-w-[515px] flex-col items-center gap-6 text-center">
