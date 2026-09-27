@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
-import { getJoinedRoomIds, listRooms } from "@/lib/rooms";
+import { getJoinedRoomIds, getRoomsByIds, listRooms } from "@/lib/rooms";
 import DiscoverRoomsScreen from "@/components/rooms/DiscoverRoomsScreen";
 
 export default async function RoomsPage() {
@@ -13,5 +13,22 @@ export default async function RoomsPage() {
 
   const joinedRoomIds = identity ? await getJoinedRoomIds(identity) : [];
 
-  return <DiscoverRoomsScreen rooms={rooms} anonId={anonId} joinedRoomIds={joinedRoomIds} />;
+  // The viewer's own private rooms, for "Rooms I Created" only — listRooms
+  // leaves private rooms out. Creators can't leave their own rooms, so these
+  // are always among the joined ids the public list doesn't already cover.
+  const publicIds = new Set(rooms.map((room) => room.id));
+  const ownPrivateRooms = identity
+    ? (await getRoomsByIds(joinedRoomIds.filter((id) => !publicIds.has(id)))).filter(
+        (room) => room.isPrivate && room.createdBy === identity,
+      )
+    : [];
+
+  return (
+    <DiscoverRoomsScreen
+      rooms={rooms}
+      ownPrivateRooms={ownPrivateRooms}
+      anonId={anonId}
+      joinedRoomIds={joinedRoomIds}
+    />
+  );
 }

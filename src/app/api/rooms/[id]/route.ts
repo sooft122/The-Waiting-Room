@@ -79,6 +79,9 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     category,
     imageUrl,
     ...descriptionFields.fields,
+    // Left as it was if the request doesn't say — so a form that predates the
+    // privacy switch can't quietly make a private room public.
+    isPrivate: typeof fields.isPrivate === "boolean" ? fields.isPrivate : room.isPrivate,
   });
 
   return NextResponse.json({ room: updated });

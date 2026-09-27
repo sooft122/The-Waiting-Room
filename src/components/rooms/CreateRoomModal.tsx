@@ -13,6 +13,7 @@ import { getRoomEndTime } from "@/lib/roomTime";
 import { MAX_CTA_TEXT_LENGTH } from "@/lib/roomDescriptionFields";
 import ModalShell from "./ModalShell";
 import RoomDescriptionFields from "./RoomDescriptionFields";
+import RoomPrivacyToggle from "./RoomPrivacyToggle";
 
 // How long to wait after the last keystroke before checking for
 // near-duplicate rooms — avoids re-running the comparison on every
@@ -47,6 +48,7 @@ export default function CreateRoomModal({ onClose, onCreated }: CreateRoomModalP
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [category, setCategory] = useState("");
+  const [isPrivate, setIsPrivate] = useState(false);
   const [description, setDescription] = useState("");
   const [ctaText, setCtaText] = useState("");
   const [ctaLink, setCtaLink] = useState("");
@@ -94,6 +96,7 @@ export default function CreateRoomModal({ onClose, onCreated }: CreateRoomModalP
   const dateEntrance = entrance();
   const timeEntrance = entrance();
   const categoryEntrance = entrance();
+  const privacyEntrance = entrance();
   const step1ActionsEntrance = entrance();
   const descriptionEntrance = entrance();
   const ctaTextEntrance = entrance();
@@ -184,6 +187,7 @@ export default function CreateRoomModal({ onClose, onCreated }: CreateRoomModalP
           description: trimmedDescription || null,
           ctaText: trimmedDescription ? ctaText.trim() || null : null,
           ctaLink: trimmedDescription ? ctaLink.trim() || null : null,
+          isPrivate,
         }),
       });
       const data = await response.json();
@@ -420,6 +424,14 @@ export default function CreateRoomModal({ onClose, onCreated }: CreateRoomModalP
                   <p className="font-inter text-[11px] text-red-400">{errors.category}</p>
                 ) : null}
               </div>
+
+              <RoomPrivacyToggle
+                idPrefix="room"
+                isPrivate={isPrivate}
+                onChange={setIsPrivate}
+                className={privacyEntrance.className}
+                style={privacyEntrance.style}
+              />
             </div>
 
             {errors.form ? (

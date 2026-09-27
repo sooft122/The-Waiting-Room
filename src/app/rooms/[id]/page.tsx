@@ -29,6 +29,9 @@ export async function generateMetadata({
   return {
     title,
     description,
+    // A private room is only for people its link was shared with — keep that
+    // link out of search results even if it ends up posted somewhere public.
+    ...(room.isPrivate ? { robots: { index: false, follow: false } } : {}),
     openGraph: {
       title,
       description,

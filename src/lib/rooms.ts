@@ -56,6 +56,12 @@ export type Room = {
    * form only allows these once a description is present). */
   ctaText: string | null;
   ctaLink: string | null;
+  /** Private rooms are left out of every public listing (Discover, search,
+   * "view all"), so people only get in through the room's link, which the
+   * creator shares. Anyone who has joined still sees it in their Archive
+   * and Profile like any other room. Normalized to false on read for rooms
+   * created before this existed. */
+  isPrivate: boolean;
 };
 
 export type CreateRoomInput = {
@@ -70,6 +76,7 @@ export type CreateRoomInput = {
   description: string | null;
   ctaText: string | null;
   ctaLink: string | null;
+  isPrivate: boolean;
 };
 
 export type UpdateRoomInput = {
@@ -81,6 +88,7 @@ export type UpdateRoomInput = {
   description: string | null;
   ctaText: string | null;
   ctaLink: string | null;
+  isPrivate: boolean;
 };
 
 export type RoomAnalytics = {
@@ -183,17 +191,21 @@ async function getRoomsWithCounts(ids: string[]): Promise<Room[]> {
 
   const found: Room[] = [];
   rooms.forEach((room, i) => {
-    if (room) found.push({ ...room, participantCount: counts[i] });
+    if (room) found.push({ ...room, isPrivate: room.isPrivate === true, participantCount: counts[i] });
   });
   return found;
 }
 
+/** Every room anyone can discover — the source for Discover, "view all",
+ * search, and the duplicate-room check. Private rooms are left out; they're
+ * reached only through their link (getRoom / getRoomsByIds still return them). */
 export async function listRooms(): Promise<Room[]> {
   const redis = getRedis();
   if (!redis) return [];
 
   const ids = await redis.lrange<string>(ROOMS_INDEX_KEY, 0, -1);
-  return getRoomsWithCounts(ids);
+  const rooms = await getRoomsWithCounts(ids);
+  return rooms.filter((room) => !room.isPrivate);
 }
 
 export async function getRoom(id: string): Promise<Room | null> {

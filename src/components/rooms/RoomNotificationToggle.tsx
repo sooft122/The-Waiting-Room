@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRoomNotifications } from "@/hooks/useRoomNotifications";
+import Switch from "@/components/ui/Switch";
 
 type RoomNotificationToggleProps = {
   roomId: string;
@@ -49,26 +50,14 @@ export default function RoomNotificationToggle({ roomId, hasJoined, publicKey }:
           <BellIcon />
           {LABEL}
         </span>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={on}
-          aria-label={LABEL}
+        <Switch
+          checked={on}
+          label={LABEL}
           disabled={disabled}
           onClick={
             status === "needs-home-screen" ? () => setShowHomeScreenHint((current) => !current) : toggle
           }
-          className={`relative h-5 w-[34px] shrink-0 rounded-full transition-colors duration-200 disabled:cursor-default disabled:opacity-50 ${
-            on ? "bg-[#dcdcdc]" : "bg-white/15"
-          }`}
-        >
-          <span
-            aria-hidden
-            className={`absolute left-0.5 top-0.5 size-4 rounded-full transition-[transform,background-color] duration-200 ${
-              on ? "translate-x-[14px] bg-[#18191b]" : "translate-x-0 bg-white/80"
-            }`}
-          />
-        </button>
+        />
       </div>
 
       {status === "blocked" ? (

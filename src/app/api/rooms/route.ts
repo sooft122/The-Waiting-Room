@@ -95,6 +95,7 @@ export async function POST(request: Request) {
       createdByLabel: session.user.name ?? session.user.email,
       createdByCountry: isCountryCode(countryCode) ? countryCode : null,
       ...descriptionFields.fields,
+      isPrivate: fields.isPrivate === true,
     });
 
     // The creator is automatically a participant of their own room — also

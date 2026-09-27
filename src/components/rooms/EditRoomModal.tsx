@@ -15,6 +15,7 @@ import { MAX_CTA_TEXT_LENGTH } from "@/lib/roomDescriptionFields";
 import ModalShell from "./ModalShell";
 import DeleteRoomModal from "./DeleteRoomModal";
 import RoomDescriptionFields from "./RoomDescriptionFields";
+import RoomPrivacyToggle from "./RoomPrivacyToggle";
 
 // How long to wait after the last keystroke before checking for
 // near-duplicate rooms — avoids re-running the comparison on every
@@ -51,6 +52,7 @@ export default function EditRoomModal({ room, onClose, onSaved }: EditRoomModalP
   const dateEntrance = entrance();
   const timeEntrance = entrance();
   const categoryEntrance = entrance();
+  const privacyEntrance = entrance();
   const step1ActionsEntrance = entrance();
   const descriptionEntrance = entrance();
   const ctaTextEntrance = entrance();
@@ -71,6 +73,7 @@ export default function EditRoomModal({ room, onClose, onSaved }: EditRoomModalP
   const [date, setDate] = useState(room.date);
   const [time, setTime] = useState(room.time ?? "");
   const [category, setCategory] = useState<string>(room.category);
+  const [isPrivate, setIsPrivate] = useState(room.isPrivate);
   const [description, setDescription] = useState(room.description ?? "");
   const [ctaText, setCtaText] = useState(room.ctaText ?? "");
   const [ctaLink, setCtaLink] = useState(room.ctaLink ?? "");
@@ -188,6 +191,7 @@ export default function EditRoomModal({ room, onClose, onSaved }: EditRoomModalP
           description: trimmedDescription || null,
           ctaText: trimmedDescription ? ctaText.trim() || null : null,
           ctaLink: trimmedDescription ? ctaLink.trim() || null : null,
+          isPrivate,
         }),
       });
       const data = await response.json();
@@ -419,6 +423,14 @@ export default function EditRoomModal({ room, onClose, onSaved }: EditRoomModalP
                   <p className="font-inter text-[11px] text-red-400">{errors.category}</p>
                 ) : null}
               </div>
+
+              <RoomPrivacyToggle
+                idPrefix="edit-room"
+                isPrivate={isPrivate}
+                onChange={setIsPrivate}
+                className={privacyEntrance.className}
+                style={privacyEntrance.style}
+              />
             </div>
 
             {errors.form ? (

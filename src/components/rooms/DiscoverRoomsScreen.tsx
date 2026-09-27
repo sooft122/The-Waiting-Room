@@ -21,13 +21,17 @@ type CategoryFilter = (typeof CATEGORY_FILTERS)[number];
 type ViewMode = "discover" | "mine";
 
 type DiscoverRoomsScreenProps = {
+  /** Public rooms only. */
   rooms: Room[];
+  /** The viewer's own private rooms — shown in "Rooms I Created", never in Discover. */
+  ownPrivateRooms: Room[];
   anonId: string | null;
   joinedRoomIds: string[];
 };
 
 export default function DiscoverRoomsScreen({
   rooms,
+  ownPrivateRooms,
   anonId,
   joinedRoomIds,
 }: DiscoverRoomsScreenProps) {
@@ -56,8 +60,12 @@ export default function DiscoverRoomsScreen({
   const scopedRooms = useMemo(() => {
     if (viewMode === "discover") return activeRooms;
     if (!myIdentity) return [];
-    return activeRooms.filter((room) => room.createdBy === myIdentity);
-  }, [activeRooms, viewMode, myIdentity]);
+    // Newest first, like the public list, with the viewer's private rooms mixed in.
+    return [
+      ...activeRooms.filter((room) => room.createdBy === myIdentity),
+      ...ownPrivateRooms.filter(isRoomActive),
+    ].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }, [activeRooms, ownPrivateRooms, viewMode, myIdentity]);
 
   const categoryCounts = useMemo(() => {
     const counts: Record<CategoryFilter, number> = {

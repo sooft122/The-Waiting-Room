@@ -63,7 +63,7 @@ export default function RoomCreatedModal({ room, onClose }: RoomCreatedModalProp
               </div>
             </div>
             <p className="absolute left-5 top-[235px] font-satoshi text-[14px] text-white opacity-65">
-              Room has been created
+              {room.isPrivate ? "Private room has been created" : "Room has been created"}
             </p>
           </div>
 
