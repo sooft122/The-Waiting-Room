@@ -202,8 +202,19 @@ export default function RoomDetailScreen({
           {/* Image fills the entire hero edge-to-edge (object-cover, full bleed).
               Only the CONTENT below (text, buttons, energy bar) is aligned to
               the nav's own width — the photo itself is never inset. */}
+          {/* On phones the ended summary's cards stack up over most of the
+              screen, and a landscape photo cover-fitted to that tall, narrow
+              frame is a blown-up crop — so there it's blurred into a soft
+              backdrop instead (the summary's own first card shows it sharp).
+              The scale hides the blur's faded edges. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img alt="" src={room.imageUrl} className="absolute inset-0 size-full object-cover" />
+          <img
+            alt=""
+            src={room.imageUrl}
+            className={`absolute inset-0 size-full object-cover ${
+              hasEnded ? "scale-110 blur-[40px] sm:scale-100 sm:blur-0" : ""
+            }`}
+          />
 
           {/* Fades to black at both the very top (so the fixed nav stays
               legible over any image) and the bottom (for the text/buttons). */}
@@ -214,6 +225,7 @@ export default function RoomDetailScreen({
                 "linear-gradient(to bottom, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0) 16%, rgba(0,0,0,0) 38.473%, rgba(0,0,0,0.92) 92.271%)",
             }}
           />
+          {hasEnded ? <div className="absolute inset-0 bg-black/55 sm:hidden" /> : null}
 
           {/* Same vertical position every other page's own content starts
               at (their pt-[104px]/[112px]/[125px]) — sits just below the
@@ -331,11 +343,13 @@ export default function RoomDetailScreen({
             // column rather than stretching it to the nav's full width. On
             // mobile the stat cards stack into a single tall column, which
             // can run taller than the 90vh hero — this stays in normal flow
-            // there (growing the hero to fit, pt- clears the fixed nav)
-            // instead of the absolute/inset-0 + justify-end used from sm up,
-            // which relied on everything fitting within a hard-clipped box
-            // and was silently cutting the top of the stack off on mobile.
-            <div className="relative px-4 pb-4 pt-[104px] sm:absolute sm:inset-0 sm:px-8 sm:pb-0 sm:pt-0">
+            // there (growing the hero to fit) instead of the absolute/inset-0
+            // + justify-end used from sm up, which relied on everything
+            // fitting within a hard-clipped box and was silently cutting the
+            // top of the stack off on mobile. Its pt starts it below the
+            // breadcrumb (104px down, 20px tall) rather than on top of it,
+            // and px-5 lines its edges up with the breadcrumb and nav.
+            <div className="relative px-5 pb-6 pt-[148px] sm:absolute sm:inset-0 sm:px-8 sm:pb-0 sm:pt-0">
               <div className="mx-auto flex w-full max-w-[921px] flex-col items-center gap-[7px] sm:h-full sm:justify-end sm:pb-7">
                 <div
                   className={`flex w-full items-center gap-[9px] opacity-70 ${endedDividerEntrance.className}`}
@@ -469,9 +483,7 @@ export default function RoomDetailScreen({
             </button>
           </div>
         </div>
-      ) : (
-        <div className="h-[10px]" />
-      )}
+      ) : null}
 
       {!hasEnded && activeTab === "overview" ? (
         <div className={`flex flex-col gap-[10px] py-[10px] ${ALIGNED_CONTAINER_CLASS} lg:flex-row`}>
