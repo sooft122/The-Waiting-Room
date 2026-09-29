@@ -5,12 +5,12 @@ export { PRESENCE_WINDOW_MS, CHECK_IN_COOLDOWN_MS } from "./roomPresenceConstant
 
 export type GlowingSeed = { dotSeed: number; colorSeed: number };
 
-const presenceKey = (roomId: string) => `waiting-room:rooms:presence:${roomId}`;
+export const presenceKey = (roomId: string) => `waiting-room:rooms:presence:${roomId}`;
 // Cumulative count of check-ins per identity — never decreases, unlike the
 // presence hash above (which only tracks the *last* check-in time). This is
 // what lets Room Energy reward "kept checking in" as an ongoing signal
 // rather than a one-time "currently present" flag.
-const checkinCountKey = (roomId: string) => `waiting-room:rooms:checkin-count:${roomId}`;
+export const checkinCountKey = (roomId: string) => `waiting-room:rooms:checkin-count:${roomId}`;
 
 export async function checkIn(roomId: string, identity: string): Promise<string> {
   const redis = getRedis();

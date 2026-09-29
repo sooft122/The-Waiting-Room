@@ -11,6 +11,8 @@ export type ProfileData = {
   email: string | null;
   isAnonymous: boolean;
   anonId: string | null;
+  /** The admin has suspended this visitor — they can browse but not take part. */
+  suspended?: boolean;
 };
 
 type ProfileContextValue = {

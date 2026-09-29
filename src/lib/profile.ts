@@ -10,7 +10,7 @@ export type Profile = {
   isAnonymous: boolean;
 };
 
-const profileKey = (identity: string) => `waiting-room:users:${identity}`;
+export const profileKey = (identity: string) => `waiting-room:users:${identity}`;
 
 /**
  * Race-safe get-or-create: the SETNX-style write only lands if the record

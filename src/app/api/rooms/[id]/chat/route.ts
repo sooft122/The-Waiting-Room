@@ -69,9 +69,10 @@ export async function POST(request: Request, { params }: { params: { id: string 
   }
 
   const profile = await getOrCreateProfile(resolved.identity, resolved.isAnonymous);
-  const displayName = resolved.isAnonymous
-    ? `Anonymous #${anonId}`
-    : profile.displayName ?? session?.user?.name ?? "Waiting Room User";
+  // Same rule as /api/profile: an admin-set name wins, for anyone.
+  const displayName =
+    profile.displayName ??
+    (resolved.isAnonymous ? `Anonymous #${anonId}` : session?.user?.name ?? "Waiting Room User");
 
   const result = await sendMessage(params.id, resolved.identity, displayName, text);
   if (!result.ok) {

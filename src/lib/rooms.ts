@@ -100,12 +100,18 @@ export type RoomAnalytics = {
   topMood: Mood | null;
 };
 
-const ROOMS_INDEX_KEY = "waiting-room:rooms:index";
-const roomKey = (id: string) => `waiting-room:rooms:room:${id}`;
+// Exported for the admin dashboard (lib/admin), which moves and cleans up
+// these same records.
+export const ROOMS_INDEX_KEY = "waiting-room:rooms:index";
+export const roomKey = (id: string) => `waiting-room:rooms:room:${id}`;
 // A hash (not a set) so each participant's join time is tracked alongside
 // membership — needed for "waiting since" and average-wait analytics.
-const participantsKey = (roomId: string) => `waiting-room:rooms:participants:${roomId}`;
-const joinedRoomsKey = (identity: string) => `waiting-room:users:joined:${identity}`;
+export const participantsKey = (roomId: string) => `waiting-room:rooms:participants:${roomId}`;
+export const joinedRoomsKey = (identity: string) => `waiting-room:users:joined:${identity}`;
+// Room id → how many times its record has been edited. The admin dashboard
+// keeps room records in memory between refreshes and only re-reads one
+// (image and all) when this number moves, instead of every room every time.
+export const ROOM_REVISIONS_KEY = "waiting-room:rooms:revisions";
 
 export function isRoomCategory(value: unknown): value is RoomCategory {
   return typeof value === "string" && (ROOM_CATEGORIES as readonly string[]).includes(value);
@@ -158,8 +164,10 @@ export async function updateRoom(id: string, updates: UpdateRoomInput): Promise<
 
   const updated: Room = { ...existing, ...updates };
   // The write and the participant-count read are independent — run together.
+  // The revision bump goes strictly after the write (one ordered pipeline),
+  // so anything that sees the new number also sees the new record.
   const [, participantCount] = await Promise.all([
-    redis.set(roomKey(id), updated),
+    redis.pipeline().set(roomKey(id), updated).hincrby(ROOM_REVISIONS_KEY, id, 1).exec(),
     getParticipantCount(id),
   ]);
   return { ...updated, participantCount };
@@ -173,6 +181,7 @@ export async function deleteRoom(id: string): Promise<void> {
     redis.del(roomKey(id)),
     redis.lrem(ROOMS_INDEX_KEY, 0, id),
     redis.del(participantsKey(id)),
+    redis.hdel(ROOM_REVISIONS_KEY, id),
     clearRoomAlerts(id),
   ]);
 }

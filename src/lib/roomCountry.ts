@@ -1,6 +1,6 @@
 import { getRedis } from "./redis";
 
-const countryKey = (roomId: string) => `waiting-room:rooms:country:${roomId}`;
+export const countryKey = (roomId: string) => `waiting-room:rooms:country:${roomId}`;
 
 const COUNTRY_CODE_PATTERN = /^[A-Z]{2}$/;
 

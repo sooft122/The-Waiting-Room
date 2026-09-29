@@ -37,7 +37,7 @@ export default function DiscoverRoomsScreen({
 }: DiscoverRoomsScreenProps) {
   const joinedRoomIdSet = useMemo(() => new Set(joinedRoomIds), [joinedRoomIds]);
   const router = useRouter();
-  const { openCreateRoom } = useRoomModal();
+  const { openCreateRoom, roomCreationLocked } = useRoomModal();
   const { data: session } = useSession();
 
   const entrance = useStaggerEntrance();
@@ -201,6 +201,10 @@ export default function DiscoverRoomsScreen({
                 <span className="relative font-figtree text-[12px] font-medium text-black">
                   Create Room
                 </span>
+                {roomCreationLocked ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img alt="Locked" className="relative size-[14px]" src="/icons/lock-01.svg" />
+                ) : null}
               </span>
             </button>
           </div>

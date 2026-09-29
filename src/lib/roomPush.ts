@@ -6,11 +6,11 @@ import type { PushSubscriptionRecord } from "./pushSubscription";
 // endpoint is a delivery address, so it's never used as a key or put in URLs.
 const subscriptionKey = (subscriptionId: string) => `waiting-room:push:subscription:${subscriptionId}`;
 // Per room: which subscriptions have new-message alerts on (id → identity)…
-const roomSubscribersKey = (roomId: string) => `waiting-room:push:room-subscribers:${roomId}`;
+export const roomSubscribersKey = (roomId: string) => `waiting-room:push:room-subscribers:${roomId}`;
 // …when each was last alerted (id → ms)…
-const roomAlertedKey = (roomId: string) => `waiting-room:push:room-alerted:${roomId}`;
+export const roomAlertedKey = (roomId: string) => `waiting-room:push:room-alerted:${roomId}`;
 // …and when each participant's room page last reported itself visible (identity → ms).
-const roomViewingKey = (roomId: string) => `waiting-room:rooms:viewing:${roomId}`;
+export const roomViewingKey = (roomId: string) => `waiting-room:rooms:viewing:${roomId}`;
 
 /** Stable id for a subscription — pushClient.ts derives the same one in the browser. */
 export function subscriptionIdFor(endpoint: string): string {

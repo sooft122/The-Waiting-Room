@@ -4,9 +4,11 @@ export const CHAT_SEND_COOLDOWN_MS = 10_000;
 const MAX_STORED_MESSAGES = 100;
 const MAX_MESSAGE_LENGTH = 300;
 
-const chatKey = (roomId: string) => `waiting-room:rooms:chat:${roomId}`;
-const chatColorKey = (roomId: string) => `waiting-room:rooms:chat-colors:${roomId}`;
-const chatCountKey = (roomId: string) => `waiting-room:rooms:chat-count:${roomId}`;
+// Exported for the admin dashboard's chat moderation (lib/admin).
+export const MAX_STORED_CHAT_MESSAGES = MAX_STORED_MESSAGES;
+export const chatKey = (roomId: string) => `waiting-room:rooms:chat:${roomId}`;
+export const chatColorKey = (roomId: string) => `waiting-room:rooms:chat-colors:${roomId}`;
+export const chatCountKey = (roomId: string) => `waiting-room:rooms:chat-count:${roomId}`;
 const chatCooldownKey = (roomId: string, identity: string) =>
   `waiting-room:rooms:chat-cooldown:${roomId}:${identity}`;
 

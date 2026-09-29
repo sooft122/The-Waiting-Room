@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { getServerSession } from "next-auth/next";
+import { waitUntil } from "@vercel/functions";
 import { authOptions } from "@/lib/auth";
 import { getOrCreateProfile, updateProfile } from "@/lib/profile";
 import { maskEmail } from "@/lib/maskEmail";
+import { recordVisit } from "@/lib/peopleActivity";
+import { isAnySuspended } from "@/lib/suspension";
 
 // This route's response changes per-request (profile edits should be visible
 // immediately), so opt out of every caching layer Next.js might otherwise
@@ -31,11 +34,32 @@ export async function GET() {
     return NextResponse.json({ error: "No identity available." }, { status: 400 });
   }
 
-  const profile = await getOrCreateProfile(resolved.identity, resolved.isAnonymous);
+  // Checked under both identities a signed-in browser carries — the same
+  // way the middleware blocks a suspended visitor's changes.
+  const suspensionIdentities = [resolved.identity];
+  if (!resolved.isAnonymous && anonId) suspensionIdentities.push(`anon:${anonId}`);
 
-  const effectiveName = resolved.isAnonymous
-    ? `Anonymous #${anonId}`
-    : profile.displayName ?? session?.user?.name ?? "Waiting Room User";
+  const [profile, suspended] = await Promise.all([
+    getOrCreateProfile(resolved.identity, resolved.isAnonymous),
+    isAnySuspended(suspensionIdentities),
+  ]);
+
+  // For the admin dashboard's "last active" and the name/photo Google gives
+  // this account — sent after the response, so it never slows the page.
+  waitUntil(
+    recordVisit(
+      resolved.identity,
+      resolved.isAnonymous
+        ? null
+        : { name: session?.user?.name ?? null, image: session?.user?.image ?? null },
+    ),
+  );
+
+  // Anonymous visitors can't rename themselves, so their displayName is only
+  // ever set by the admin; otherwise it's their number, as always.
+  const effectiveName =
+    profile.displayName ??
+    (resolved.isAnonymous ? `Anonymous #${anonId}` : session?.user?.name ?? "Waiting Room User");
 
   return NextResponse.json(
     {
@@ -45,6 +69,7 @@ export async function GET() {
       email: session?.user?.email ? maskEmail(session.user.email) : null,
       isAnonymous: resolved.isAnonymous,
       anonId,
+      suspended,
     },
     { headers: { "Cache-Control": "no-store" } },
   );

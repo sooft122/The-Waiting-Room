@@ -24,7 +24,7 @@ export default function SearchScreen({
   joinedRoomIds,
 }: SearchScreenProps) {
   const joinedRoomIdSet = useMemo(() => new Set(joinedRoomIds), [joinedRoomIds]);
-  const { openCreateRoom } = useRoomModal();
+  const { openCreateRoom, roomCreationLocked } = useRoomModal();
   const { recentSearches, hydrated, addSearch, removeSearch, clearSearches } =
     useRecentSearches();
   const [query, setQuery] = useState(initialQuery ?? "");
@@ -123,8 +123,12 @@ export default function SearchScreen({
                 className="flex h-full w-full items-center justify-center rounded-[6px] shadow-[0px_4px_27px_0px_rgba(0,0,0,0.18)]"
                 style={{ backgroundImage: "linear-gradient(180deg, #252628, #18191b)" }}
               >
-                <span className="font-figtree text-[12px] font-medium text-subtle">
+                <span className="flex items-center gap-1 font-figtree text-[12px] font-medium text-subtle">
                   Create a room for it
+                  {roomCreationLocked ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img alt="Locked" className="size-3 opacity-70 invert" src="/icons/lock-01.svg" />
+                  ) : null}
                 </span>
               </span>
             </button>

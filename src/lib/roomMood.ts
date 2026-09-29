@@ -9,7 +9,7 @@ export function isMood(value: unknown): value is Mood {
 
 export type MoodBreakdown = { mood: Mood; count: number; percent: number };
 
-const moodKey = (roomId: string) => `waiting-room:rooms:mood:${roomId}`;
+export const moodKey = (roomId: string) => `waiting-room:rooms:mood:${roomId}`;
 
 /** One vote per identity per room — casting again overwrites the previous pick. */
 export async function castMoodVote(roomId: string, identity: string, mood: Mood): Promise<void> {

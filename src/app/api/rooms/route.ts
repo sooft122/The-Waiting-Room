@@ -13,6 +13,8 @@ import {
 } from "@/lib/rooms";
 import { isCountryCode, setParticipantCountry } from "@/lib/roomCountry";
 import { parseDescriptionFields } from "@/lib/roomDescriptionFields";
+import { getRoomCreationSetting } from "@/lib/siteState";
+import { ROOM_CREATION_LOCKED_MESSAGE } from "@/lib/siteStateShared";
 
 // Base64 inflates raw bytes by ~4/3; this caps the *encoded* string length,
 // corresponding to roughly a 4MB source image.
@@ -29,6 +31,16 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: "Sign in with Google to create a room." },
       { status: 401 },
+    );
+  }
+
+  // The admin can pause room creation from the dashboard (they can still
+  // create rooms there themselves).
+  const roomCreation = await getRoomCreationSetting();
+  if (roomCreation.locked) {
+    return NextResponse.json(
+      { error: roomCreation.message ?? ROOM_CREATION_LOCKED_MESSAGE, locked: true },
+      { status: 403 },
     );
   }
 

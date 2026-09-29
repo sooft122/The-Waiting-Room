@@ -1,8 +1,12 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Figtree } from "next/font/google";
+import { unstable_noStore as noStore } from "next/cache";
 import AuthProvider from "@/components/providers/AuthProvider";
 import ProfileProvider from "@/components/providers/ProfileProvider";
+import SiteStateProvider from "@/components/providers/SiteStateProvider";
+import SuspendedNotice from "@/components/providers/SuspendedNotice";
 import RoomModalProvider from "@/components/rooms/RoomModalProvider";
+import { getSiteState } from "@/lib/siteState";
 import "./globals.css";
 
 const inter = Inter({
@@ -54,11 +58,17 @@ export const viewport: Viewport = {
   themeColor: "#0c0d10",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Every page is rendered per request anyway (they all read the visitor's
+  // cookie); this says so explicitly, so the admin-controlled state below is
+  // always current rather than baked in at build time.
+  noStore();
+  const siteState = await getSiteState();
+
   return (
     <html lang="en" className={`${inter.variable} ${figtree.variable}`}>
       <head>
@@ -70,7 +80,10 @@ export default function RootLayout({
       <body className="bg-[#0c0d10] text-white antialiased">
         <AuthProvider>
           <ProfileProvider>
-            <RoomModalProvider>{children}</RoomModalProvider>
+            <SiteStateProvider initial={siteState}>
+              <RoomModalProvider>{children}</RoomModalProvider>
+              <SuspendedNotice />
+            </SiteStateProvider>
           </ProfileProvider>
         </AuthProvider>
       </body>

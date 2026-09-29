@@ -31,7 +31,7 @@ export default function DropdownMenu({
   onNavigate,
 }: DropdownMenuProps) {
   const { data: session, status } = useSession();
-  const { openCreateRoom } = useRoomModal();
+  const { openCreateRoom, roomCreationLocked } = useRoomModal();
   const { profile } = useProfileContext();
   const isSignedIn = status === "authenticated";
   const anonName = anonId ? `Anonymous #${anonId}` : "Anonymous";
@@ -122,8 +122,14 @@ export default function DropdownMenu({
           }}
           fullWidth
           icon={
+            // A lock while the admin has room creation paused — tapping it
+            // explains why instead of opening the form.
             // eslint-disable-next-line @next/next/no-img-element
-            <img alt="" className="size-full" src="/icons/add-01.svg" />
+            <img
+              alt={roomCreationLocked ? "Locked" : ""}
+              className="size-full"
+              src={roomCreationLocked ? "/icons/lock-01.svg" : "/icons/add-01.svg"}
+            />
           }
         >
           Create Room
