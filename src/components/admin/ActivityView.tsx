@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, type ReactNode } from "react";
+import { PERMISSION_FOR_KIND } from "@/lib/admin/permissions";
 import type { AdminActionKind, AdminLogEntry } from "@/lib/admin/types";
 import { useAdmin } from "./AdminContext";
 import { formatDateTime, timeAgo } from "./format";
@@ -18,13 +19,15 @@ import {
   RestoreIcon,
   RoomsIcon,
   SearchIcon,
+  ShieldIcon,
   TrashIcon,
   UserIcon,
+  UserPlusIcon,
   XIcon,
 } from "./icons";
 import { Badge, Button, Card, EmptyState, Segmented, Skeleton, TextInput, cx } from "./ui";
 
-type Filter = "all" | "rooms" | "people" | "settings";
+type Filter = "all" | "rooms" | "people" | "admins" | "settings";
 
 const KIND_STYLE: Record<AdminActionKind, { icon: ReactNode; tint: string }> = {
   "room.create": { icon: <PlusIcon size={15} />, tint: "#6ee7b7" },
@@ -43,10 +46,14 @@ const KIND_STYLE: Record<AdminActionKind, { icon: ReactNode; tint: string }> = {
   "person.leaveAll": { icon: <RoomsIcon size={15} />, tint: "#fcd34d" },
   "settings.roomCreation": { icon: <LockIcon size={15} />, tint: "#c4b5fd" },
   "site.refresh": { icon: <RefreshIcon size={15} />, tint: "#93c5fd" },
+  "admin.add": { icon: <UserPlusIcon size={15} />, tint: "#c4b5fd" },
+  "admin.update": { icon: <ShieldIcon size={15} />, tint: "#c4b5fd" },
+  "admin.remove": { icon: <ShieldIcon size={15} />, tint: "#ff9a9d" },
 };
 
 function matchesFilter(entry: AdminLogEntry, filter: Filter): boolean {
   if (filter === "all") return true;
+  if (filter === "admins") return entry.targetType === "admin";
   if (filter === "settings") return entry.targetType === "settings" || entry.targetType === "site";
   if (filter === "people") return entry.kind.startsWith("person.") || entry.kind === "room.removePerson";
   return entry.kind.startsWith("room.") || entry.kind.startsWith("chat.");
@@ -63,12 +70,14 @@ function dayLabel(iso: string): string {
 }
 
 export function LogRow({ entry, compact }: { entry: AdminLogEntry; compact?: boolean }) {
-  const { reverse, now, snapshot, admin, focusOn } = useAdmin();
+  const { reverse, now, snapshot, admin, focusOn, setTab, deny } = useAdmin();
   const [busy, setBusy] = useState(false);
   const style = KIND_STYLE[entry.kind] ?? { icon: <ActivityIcon size={15} />, tint: "#ffffff" };
   const undone = entry.status === "undone";
   const room = entry.targetType === "room" ? snapshot?.rooms.find((item) => item.id === entry.targetId) : undefined;
-  const canOpen = entry.targetType === "person" || !!room;
+  const canOpen = entry.targetType === "person" || entry.targetType === "admin" || !!room;
+  // Undoing or redoing takes the same permission as making the change.
+  const reverseLock = deny(PERMISSION_FOR_KIND[entry.kind] ?? "owner");
 
   return (
     <div className="group flex items-start gap-3 rounded-[14px] px-3 py-2.5 transition-colors hover:bg-white/[0.03]">
@@ -85,9 +94,11 @@ export function LogRow({ entry, compact }: { entry: AdminLogEntry; compact?: boo
               type="button"
               className="text-left hover:underline"
               onClick={() =>
-                entry.targetType === "person"
-                  ? focusOn({ tab: "people", identity: entry.targetId })
-                  : focusOn({ tab: "rooms", roomId: entry.targetId })
+                entry.targetType === "admin"
+                  ? setTab("settings")
+                  : entry.targetType === "person"
+                    ? focusOn({ tab: "people", identity: entry.targetId })
+                    : focusOn({ tab: "rooms", roomId: entry.targetId })
               }
             >
               {entry.summary}
@@ -107,6 +118,7 @@ export function LogRow({ entry, compact }: { entry: AdminLogEntry; compact?: boo
         <Button
           size="sm"
           variant={compact ? "ghost" : "secondary"}
+          locked={reverseLock}
           loading={busy}
           onClick={async () => {
             setBusy(true);
@@ -156,6 +168,7 @@ export default function ActivityView() {
             { value: "all", label: "All" },
             { value: "rooms", label: "Rooms & chat" },
             { value: "people", label: "People" },
+            { value: "admins", label: "Admins" },
             { value: "settings", label: "Settings" },
           ]}
         />

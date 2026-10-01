@@ -27,7 +27,7 @@ function Kpi({ label, value, foot, icon }: { label: string; value: string | null
 }
 
 export default function OverviewView() {
-  const { snapshot, people, now, setTab, openEditor, focusOn } = useAdmin();
+  const { snapshot, people, now, setTab, openEditor, focusOn, deny } = useAdmin();
 
   const stats = useMemo(() => {
     if (!snapshot) return null;
@@ -97,7 +97,12 @@ export default function OverviewView() {
         <Card className="p-5 sm:p-6">
           <CardHeader title="Quick actions" subtitle="The things you'll reach for most. Press ⌘K for everything else." />
           <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <Button variant="primary" icon={<PlusIcon size={15} />} onClick={() => openEditor("new")}>
+            <Button
+              variant="primary"
+              icon={<PlusIcon size={15} />}
+              locked={deny("rooms.create")}
+              onClick={() => openEditor("new")}
+            >
               New room
             </Button>
             <RefreshEveryoneButton />

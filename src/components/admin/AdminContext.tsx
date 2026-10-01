@@ -1,13 +1,22 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import type { AdminLogEntry, AdminPerson, AdminRoom, AdminSnapshot } from "@/lib/admin/types";
+import type { AdminPermission, OwnerOnly } from "@/lib/admin/permissions";
+import type { AdminLogEntry, AdminMe, AdminPerson, AdminRoom, AdminSnapshot } from "@/lib/admin/types";
 import { UndoIcon, RedoIcon, XIcon, CheckIcon } from "./icons";
 import { Button, Dialog, cx } from "./ui";
 
 export type AdminTab = "overview" | "rooms" | "people" | "activity" | "settings";
 
-export class AdminApiError extends Error {}
+export class AdminApiError extends Error {
+  constructor(
+    message: string,
+    /** 404 means this account isn't an admin (anymore), or is signed out. */
+    public status = 0,
+  ) {
+    super(message);
+  }
+}
 
 export type AdminCall = <T>(op: string, args?: Record<string, unknown>) => Promise<T>;
 
@@ -25,10 +34,12 @@ export function createAdminCall(adminKey: string): AdminCall {
       throw new AdminApiError("You seem to be offline — check your connection.");
     }
     if (response.status === 404) {
-      throw new AdminApiError("Your admin session has ended. Reload the page and sign in again.");
+      throw new AdminApiError("Your admin access has ended. Reload the page to sign in again.", 404);
     }
     const data = await response.json().catch(() => null);
-    if (!response.ok) throw new AdminApiError(data?.error ?? "Something went wrong — please try again.");
+    if (!response.ok) {
+      throw new AdminApiError(data?.error ?? "Something went wrong — please try again.", response.status);
+    }
     return data as T;
   };
 }
@@ -52,9 +63,20 @@ type ConfirmOptions = {
 
 type FocusTarget = { tab: "rooms"; roomId: string } | { tab: "people"; identity: string };
 
+/** Adding someone as an admin (from Settings, or straight from their
+ * profile), or changing what an existing admin can do. */
+export type AccessTarget = { mode: "add"; email?: string } | { mode: "edit"; email: string };
+
 type AdminContextValue = {
   call: AdminCall;
   admin: { email: string; name: string; image: string | null };
+  /** The admin using the dashboard and what they're allowed to do — kept
+   * current, so a change to their access shows up within seconds. */
+  me: AdminMe;
+  can: (permission: AdminPermission | OwnerOnly) => boolean;
+  /** Why they can't — the tooltip on a locked control. Null when they can. */
+  deny: (permission: AdminPermission | OwnerOnly) => string | null;
+  openAccess: (target: AccessTarget) => void;
   adminKey: string;
   snapshot: AdminSnapshot | null;
   people: AdminPerson[] | null;

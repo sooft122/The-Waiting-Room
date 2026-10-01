@@ -15,6 +15,7 @@ import {
   SearchIcon,
   SlidersIcon,
   UnlockIcon,
+  UserPlusIcon,
   UsersIcon,
 } from "./icons";
 import { StatusBadge } from "./RoomsView";
@@ -104,7 +105,7 @@ function ActionPreview({ icon, title, body }: { icon: ReactNode; title: string; 
 
 /** ⌘K: jump to any room or person, or run an action, from anywhere. */
 export default function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { snapshot, people, refreshPeople, setTab, focusOn, openEditor, change, now } = useAdmin();
+  const { snapshot, people, refreshPeople, setTab, focusOn, openEditor, openAccess, change, can, now } = useAdmin();
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
@@ -124,9 +125,10 @@ export default function CommandPalette({ open, onClose }: { open: boolean; onClo
       onClose();
     };
 
-    const actions: Item[] = [
+    const actions: (Item & { allowed?: boolean })[] = [
       {
         id: "action:new-room",
+        allowed: can("rooms.create"),
         section: "Actions",
         title: "New room",
         subtitle: "Create a room",
@@ -139,6 +141,7 @@ export default function CommandPalette({ open, onClose }: { open: boolean; onClo
       },
       {
         id: "action:lock",
+        allowed: can("site.roomCreation"),
         section: "Actions",
         title: locked ? "Unlock room creation" : "Lock room creation",
         subtitle: locked ? "Let people create rooms again" : "Stop people creating rooms",
@@ -161,6 +164,7 @@ export default function CommandPalette({ open, onClose }: { open: boolean; onClo
       },
       {
         id: "action:refresh",
+        allowed: can("site.refresh"),
         section: "Actions",
         title: "Refresh everyone's pages",
         subtitle: "Push the latest data to every open page",
@@ -169,6 +173,25 @@ export default function CommandPalette({ open, onClose }: { open: boolean; onClo
         run: () => {
           onClose();
           void change("site.refresh", {});
+        },
+      },
+      {
+        id: "action:add-admin",
+        allowed: can("owner"),
+        section: "Actions",
+        title: "Add an admin",
+        subtitle: "Give someone access to this dashboard",
+        leading: <UserPlusIcon size={16} />,
+        preview: (
+          <ActionPreview
+            icon={<UserPlusIcon size={22} />}
+            title="Add an admin"
+            body="Pick a Google account and choose exactly what they can change. Only you can do this."
+          />
+        ),
+        run: () => {
+          onClose();
+          openAccess({ mode: "add" });
         },
       },
       ...(
@@ -189,7 +212,9 @@ export default function CommandPalette({ open, onClose }: { open: boolean; onClo
       })),
     ];
 
+    // Only what this admin is allowed to do.
     const matchingActions = actions
+      .filter((item) => item.allowed !== false)
       .map((item) => ({ item, s: score(`${item.title} ${item.subtitle ?? ""}`, q) }))
       .filter(({ s }) => s > 0)
       .sort((a, b) => b.s - a.s)
@@ -245,7 +270,7 @@ export default function CommandPalette({ open, onClose }: { open: boolean; onClo
       }));
 
     return [...matchingActions, ...rooms, ...peopleItems];
-  }, [query, snapshot, people, now, setTab, onClose, openEditor, change, focusOn]);
+  }, [query, snapshot, people, now, setTab, onClose, openEditor, openAccess, change, can, focusOn]);
 
   useEffect(() => setActive(0), [query]);
   useEffect(() => {

@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import type { AdminPerson, AdminPersonDetail } from "@/lib/admin/types";
+import { ALL_PERMISSIONS, describeAccess, permissionPhrase, type AdminRole } from "@/lib/admin/permissions";
+import type { AdminPerson, AdminPersonDetail, AdminSnapshot } from "@/lib/admin/types";
 import { getCountryName } from "@/lib/countries";
 import { useAdmin } from "./AdminContext";
 import Flag from "./Flag";
@@ -9,6 +10,7 @@ import { MOOD_EMOJI, formatCount, formatDate, formatDateTime, formatSpan, plural
 import {
   BanIcon,
   CheckIcon,
+  CrownIcon,
   MessageIcon,
   PencilIcon,
   RoomsIcon,
@@ -16,6 +18,7 @@ import {
   ShieldIcon,
   TrashIcon,
   UserIcon,
+  UserPlusIcon,
   UsersIcon,
   XIcon,
 } from "./icons";
@@ -64,8 +67,34 @@ function lastActive(person: AdminPerson): string {
   return person.lastSeenAt ?? person.firstSeenAt ?? "";
 }
 
+/** Whether this account can open the dashboard, and as what. */
+export function adminRoleOf(snapshot: AdminSnapshot | null, email: string | null): AdminRole | null {
+  if (!snapshot || !email) return null;
+  const key = email.toLowerCase();
+  if (snapshot.team.owners.includes(key)) return "owner";
+  return snapshot.team.members.some((member) => member.email === key) ? "admin" : null;
+}
+
+function RoleBadge({ role }: { role: AdminRole | null }) {
+  if (role === "owner") {
+    return (
+      <Badge tone="amber" icon={<CrownIcon size={12} />}>
+        Owner
+      </Badge>
+    );
+  }
+  if (role === "admin") {
+    return (
+      <Badge tone="violet" icon={<ShieldIcon size={12} />}>
+        Admin
+      </Badge>
+    );
+  }
+  return null;
+}
+
 export default function PeopleView() {
-  const { people, refreshPeople, focus, clearFocus, now } = useAdmin();
+  const { people, refreshPeople, focus, clearFocus, now, snapshot } = useAdmin();
   const [segment, setSegment] = useState<Segment>("accounts");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortKey>("active");
@@ -199,6 +228,7 @@ export default function PeopleView() {
                 <PersonRow
                   key={person.identity}
                   person={person}
+                  role={adminRoleOf(snapshot, person.email)}
                   now={now}
                   selected={selected === person.identity}
                   onSelect={() => setSelected(person.identity)}
@@ -248,11 +278,13 @@ export default function PeopleView() {
 
 function PersonRow({
   person,
+  role,
   now,
   selected,
   onSelect,
 }: {
   person: AdminPerson;
+  role: AdminRole | null;
   now: number;
   selected: boolean;
   onSelect: () => void;
@@ -271,6 +303,7 @@ function PersonRow({
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-2">
           <span className="truncate text-[13.5px] font-medium">{person.name}</span>
+          <RoleBadge role={role} />
           {person.suspended ? <Badge tone="red">Suspended</Badge> : null}
         </span>
         <span className="block truncate text-[12px] text-white/40">
@@ -312,7 +345,7 @@ function Stat({ label, value }: { label: string; value: string }) {
 
 /** Everything about one person, and everything that can be done about them. */
 export function PersonPanel({ identity, onClose, bare }: { identity: string; onClose: () => void; bare?: boolean }) {
-  const { call, change, confirm, changeCount, focusOn, now, snapshot } = useAdmin();
+  const { call, change, confirm, changeCount, focusOn, now, snapshot, me, deny } = useAdmin();
   const [detail, setDetail] = useState<AdminPersonDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [renaming, setRenaming] = useState(false);
@@ -360,8 +393,16 @@ export function PersonPanel({ identity, onClose, bare }: { identity: string; onC
     }
 
     const { person, rooms, messages, totalWaitMs } = detail;
-    const isAdmin = !!person.email && (snapshot?.admins ?? []).includes(person.email.toLowerCase());
+    const role = adminRoleOf(snapshot, person.email);
     const leavableRooms = rooms.filter((room) => !room.isHost && !room.room.trashedAt);
+    // Another admin's account is the owner's to change (the API agrees).
+    const accountLock =
+      role && me.role !== "owner" && person.email?.toLowerCase() !== me.email.toLowerCase()
+        ? "Only the owner can change another admin's account."
+        : null;
+    const editLock = deny("people.edit") ?? accountLock;
+    const membershipLock = deny("rooms.people") ?? accountLock;
+    const canDeleteMessages = !deny("chat.moderate");
 
     async function run(key: string, action: () => Promise<unknown>) {
       setBusy(key);
@@ -413,11 +454,7 @@ export function PersonPanel({ identity, onClose, bare }: { identity: string; onC
             <Badge tone={person.kind === "google" ? "blue" : "neutral"}>
               {person.kind === "google" ? "Google account" : "Anonymous visitor"}
             </Badge>
-            {isAdmin ? (
-              <Badge tone="violet" icon={<ShieldIcon size={12} />}>
-                Admin
-              </Badge>
-            ) : null}
+            <RoleBadge role={role} />
             {person.suspended ? <Badge tone="red">Suspended</Badge> : null}
             {person.nameOverride ? <Badge>Custom name</Badge> : null}
           </div>
@@ -434,6 +471,7 @@ export function PersonPanel({ identity, onClose, bare }: { identity: string; onC
           <Button
             size="sm"
             icon={<PencilIcon size={14} />}
+            locked={editLock}
             onClick={() => {
               setDraftName(person.nameOverride ?? "");
               setRenaming(true);
@@ -444,6 +482,7 @@ export function PersonPanel({ identity, onClose, bare }: { identity: string; onC
           {person.nameOverride ? (
             <Button
               size="sm"
+              locked={editLock}
               loading={busy === "reset"}
               onClick={() => run("reset", () => change("person.update", { identity, displayName: null }))}
             >
@@ -453,6 +492,7 @@ export function PersonPanel({ identity, onClose, bare }: { identity: string; onC
           {person.hasUploadedPhoto ? (
             <Button
               size="sm"
+              locked={editLock}
               loading={busy === "photo"}
               onClick={() => run("photo", () => change("person.update", { identity, removePhoto: true }))}
             >
@@ -463,6 +503,7 @@ export function PersonPanel({ identity, onClose, bare }: { identity: string; onC
             <Button
               size="sm"
               icon={<RoomsIcon size={14} />}
+              locked={membershipLock}
               loading={busy === "leaveAll"}
               onClick={async () => {
                 const ok = await confirm({
@@ -477,11 +518,12 @@ export function PersonPanel({ identity, onClose, bare }: { identity: string; onC
               Remove from all rooms
             </Button>
           ) : null}
-          {!isAdmin ? (
+          {!role ? (
             person.suspended ? (
               <Button
                 size="sm"
                 icon={<CheckIcon size={14} />}
+                locked={deny("people.suspend")}
                 loading={busy === "suspend"}
                 onClick={() => run("suspend", () => change("person.suspend", { identity, suspended: false }))}
               >
@@ -492,6 +534,7 @@ export function PersonPanel({ identity, onClose, bare }: { identity: string; onC
                 size="sm"
                 variant="dangerGhost"
                 icon={<BanIcon size={14} />}
+                locked={deny("people.suspend")}
                 loading={busy === "suspend"}
                 onClick={async () => {
                   const ok = await confirm({
@@ -508,6 +551,10 @@ export function PersonPanel({ identity, onClose, bare }: { identity: string; onC
             )
           ) : null}
         </div>
+
+        {person.kind === "google" && person.email ? (
+          <DashboardAccess email={person.email} name={person.name} suspended={person.suspended} />
+        ) : null}
 
         <Section title="Rooms" count={rooms.length}>
           {rooms.length === 0 ? (
@@ -541,7 +588,7 @@ export function PersonPanel({ identity, onClose, bare }: { identity: string; onC
                 <span className="hidden sm:block">
                   <StatusBadge room={entry.room} now={now} />
                 </span>
-                {entry.isHost || entry.room.trashedAt ? (
+                {entry.isHost || entry.room.trashedAt || membershipLock ? (
                   <span className="w-7" />
                 ) : (
                   <IconButton
@@ -573,15 +620,17 @@ export function PersonPanel({ identity, onClose, bare }: { identity: string; onC
                     in {message.roomName} · {timeAgo(message.createdAt, now)}
                   </p>
                 </div>
-                <IconButton
-                  size="sm"
-                  tone="danger"
-                  label="Delete message"
-                  className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
-                  onClick={() => change("chat.delete", { roomId: message.roomId, messageId: message.id })}
-                >
-                  <TrashIcon size={14} />
-                </IconButton>
+                {canDeleteMessages ? (
+                  <IconButton
+                    size="sm"
+                    tone="danger"
+                    label="Delete message"
+                    className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+                    onClick={() => change("chat.delete", { roomId: message.roomId, messageId: message.id })}
+                  >
+                    <TrashIcon size={14} />
+                  </IconButton>
+                ) : null}
               </div>
             ))
           )}
@@ -625,6 +674,90 @@ export function PersonPanel({ identity, onClose, bare }: { identity: string; onC
       </div>
       {body}
     </Card>
+  );
+}
+
+/** Whether they can open the dashboard — and for the owner, the place to
+ * make them an admin, change what they can do, or take it away. */
+function DashboardAccess({ email, name, suspended }: { email: string; name: string; suspended: boolean }) {
+  const { snapshot, me, deny, openAccess, change, confirm } = useAdmin();
+  const [removing, setRemoving] = useState(false);
+  const key = email.toLowerCase();
+  const role = adminRoleOf(snapshot, key);
+  const member = snapshot?.team.members.find((item) => item.email === key) ?? null;
+  const isOwner = me.role === "owner";
+
+  return (
+    <Section title="Dashboard access">
+      {role === "owner" ? (
+        <div className="flex items-start gap-3 px-1">
+          <span className="mt-0.5 text-[#fcd34d]">
+            <CrownIcon size={16} />
+          </span>
+          <p className="text-[13px] leading-[1.5] text-white/60">
+            <span className="font-medium text-white/85">Owner.</span> Full access, and the only one who can add or remove
+            admins.
+          </p>
+        </div>
+      ) : member ? (
+        <div className="flex flex-col gap-3 px-1">
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 text-[#c4b5fd]">
+              <ShieldIcon size={16} />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[13px] leading-[1.5] text-white/60">
+                <span className="font-medium text-white/85">Admin · {describeAccess(member.permissions)}.</span>{" "}
+                {member.permissions.length === 0
+                  ? "Can look around the dashboard, but not change anything."
+                  : member.permissions.length === ALL_PERMISSIONS.length
+                    ? "Can change everything except who's an admin."
+                    : `Can ${member.permissions.map(permissionPhrase).join(", ")}.`}
+              </p>
+            </div>
+          </div>
+          {isOwner ? (
+            <div className="flex flex-wrap gap-1.5">
+              <Button size="sm" icon={<PencilIcon size={14} />} onClick={() => openAccess({ mode: "edit", email: key })}>
+                Edit access
+              </Button>
+              <Button
+                size="sm"
+                variant="dangerGhost"
+                icon={<XIcon size={14} />}
+                loading={removing}
+                onClick={async () => {
+                  const ok = await confirm({
+                    title: `Remove ${name} as an admin?`,
+                    body: "They lose access to this dashboard straight away — if they have it open, it closes within seconds. You can undo this.",
+                    confirmLabel: "Remove admin",
+                    tone: "danger",
+                  });
+                  if (!ok) return;
+                  setRemoving(true);
+                  await change("admin.remove", { email: key });
+                  setRemoving(false);
+                }}
+              >
+                Remove admin
+              </Button>
+            </div>
+          ) : null}
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center justify-between gap-3 px-1">
+          <p className="text-[13px] text-white/45">Not an admin.</p>
+          <Button
+            size="sm"
+            icon={<UserPlusIcon size={14} />}
+            locked={deny("owner") ?? (suspended ? "Lift their suspension before making them an admin." : null)}
+            onClick={() => openAccess({ mode: "add", email: key })}
+          >
+            Make admin
+          </Button>
+        </div>
+      )}
+    </Section>
   );
 }
 

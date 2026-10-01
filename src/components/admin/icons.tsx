@@ -124,6 +124,19 @@ export const UserIcon = (p: IconProps) => (
     <path d="M4 21a8 8 0 0 1 16 0" />
   </Icon>
 );
+export const UserPlusIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="10" cy="8" r="3.75" />
+    <path d="M3 20.5a7 7 0 0 1 11.2-5.6" />
+    <path d="M18.5 14.5v6M15.5 17.5h6" />
+  </Icon>
+);
+export const CrownIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M5 16 3.5 7.5l5 3.5L12 5.5l3.5 5.5 5-3.5L19 16Z" />
+    <path d="M5 19.5h14" />
+  </Icon>
+);
 export const RoomsIcon = (p: IconProps) => (
   <Icon {...p}>
     <rect x="3.5" y="3.5" width="7" height="7" rx="2" />

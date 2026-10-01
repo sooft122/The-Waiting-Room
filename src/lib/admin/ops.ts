@@ -20,11 +20,22 @@ import {
   type RoomCreationSetting,
 } from "@/lib/siteState";
 import { MAX_LOCK_MESSAGE_LENGTH } from "@/lib/siteStateShared";
-import { setSuspended } from "@/lib/suspension";
+import { isAnySuspended, setSuspended } from "@/lib/suspension";
 import type { Profile } from "@/lib/profile";
-import { getAdminEmails, type AdminUser } from "./auth";
+import { getAdminAccess, getOwnerEmails, isOwnerEmail, type AdminUser } from "./auth";
 import { AdminError } from "./errors";
 import { UNDO_WINDOW_DAYS, getAction, listActions, recordAction, setActionStatus } from "./log";
+import {
+  PERMISSION_FOR_KIND,
+  deniedMessage,
+  describeAccess,
+  hasPermission,
+  normalizePermissions,
+  permissionPhrase,
+  type AdminPermission,
+  type OwnerOnly,
+} from "./permissions";
+import { deleteMember, getMember, listMembers, normalizeEmail, saveMember } from "./team";
 import {
   MAX_CHAT_TEXT_LENGTH,
   clearRoomChat,
@@ -53,9 +64,10 @@ import {
   listAdminPeople,
   personKind,
   readProfileForEdit,
+  resolvePeople,
   writeProfile,
 } from "./people";
-import type { AdminActionKind, AdminChangeResult, AdminLogEntry, AdminSnapshot } from "./types";
+import type { AdminActionKind, AdminChangeResult, AdminLogEntry, AdminMember, AdminSnapshot } from "./types";
 
 type Args = Record<string, unknown>;
 
@@ -72,6 +84,15 @@ function text(value: unknown, label: string): string {
 
 function quote(name: string): string {
   return `“${name}”`;
+}
+
+/** An admin's own account is the owner's to change — other admins can change
+ * everyone else's (as far as their permissions go), and their own. */
+async function assertCanChangeAccount(admin: AdminUser, identity: string): Promise<void> {
+  if (admin.role === "owner" || normalizeEmail(identity) === normalizeEmail(admin.email)) return;
+  if (await getAdminAccess(identity)) {
+    throw new AdminError("Only the owner can change another admin's account.", 403);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -304,6 +325,7 @@ async function removePersonOp(admin: AdminUser, args: Args): Promise<AdminChange
   if (room.createdBy === identity) {
     throw new AdminError("A room's host can't be removed from their own room.");
   }
+  await assertCanChangeAccount(admin, identity);
   const snapshot = await snapshotMembership(roomId, identity);
   if (!snapshot.joinedAt) throw new AdminError("They're not in that room anymore.", 409);
   const person = await getAdminPerson(identity, []).catch(() => null);
@@ -327,6 +349,7 @@ async function removePersonOp(admin: AdminUser, args: Args): Promise<AdminChange
 
 async function leaveAllOp(admin: AdminUser, args: Args): Promise<AdminChangeResult> {
   const identity = text(args.identity, "A person");
+  await assertCanChangeAccount(admin, identity);
   const rooms = await listAdminRooms();
   const hosted = new Set(rooms.filter((room) => room.createdBy === identity).map((room) => room.id));
   const roomIds = (await getJoinedRoomIdsFor(identity)).filter((id) => !hosted.has(id));
@@ -431,6 +454,7 @@ type ProfileSnapshot = { before: Profile; after: Profile };
 async function updatePersonOp(admin: AdminUser, args: Args): Promise<AdminChangeResult | { entry: null }> {
   const identity = text(args.identity, "A person");
   if (personKind(identity) === "system") throw new AdminError("That isn't a person.");
+  await assertCanChangeAccount(admin, identity);
   const before = await readProfileForEdit(identity);
   const after: Profile = { ...before };
 
@@ -482,8 +506,13 @@ async function updatePersonOp(admin: AdminUser, args: Args): Promise<AdminChange
 async function suspendOp(admin: AdminUser, args: Args): Promise<AdminChangeResult> {
   const identity = text(args.identity, "A person");
   if (personKind(identity) === "system") throw new AdminError("That isn't a person.");
-  if (getAdminEmails().includes(identity.toLowerCase())) {
-    throw new AdminError("An admin account can't be suspended.");
+  const theirAccess = await getAdminAccess(identity);
+  if (theirAccess) {
+    throw new AdminError(
+      theirAccess.role === "admin" && admin.role === "owner"
+        ? "Admins can't be suspended — remove their admin access first."
+        : "An admin account can't be suspended.",
+    );
   }
   const suspended = args.suspended === true;
   const person = await getAdminPerson(identity, []);
@@ -559,6 +588,123 @@ async function refreshEveryoneOp(admin: AdminUser): Promise<AdminChangeResult> {
     undoable: false,
   });
   return { entry };
+}
+
+// ---------------------------------------------------------------------------
+// Admins — adding, changing and removing them is the owner's alone (see
+// OP_PERMISSIONS), and it never touches what visitors see.
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MAX_EMAIL_LENGTH = 254;
+
+/** Before and after, either of which may be "not an admin". */
+type MemberSnapshot = { before: AdminMember | null; after: AdminMember | null };
+
+function parseEmail(value: unknown): string {
+  const email = normalizeEmail(text(value, "An email address"));
+  if (email.length > MAX_EMAIL_LENGTH || !EMAIL_PATTERN.test(email)) {
+    throw new AdminError("That doesn't look like an email address.");
+  }
+  return email;
+}
+
+function parsePermissions(value: unknown): AdminPermission[] {
+  if (!Array.isArray(value)) throw new AdminError("Pick what they're allowed to do.");
+  return normalizePermissions(value);
+}
+
+/** Their name if they've signed in before, otherwise their email. */
+async function accountLabel(email: string): Promise<string> {
+  const basics = (await resolvePeople([email]).catch(() => null))?.get(email);
+  return basics?.profile?.displayName || basics?.account?.name || email;
+}
+
+async function recordMemberChange(
+  admin: AdminUser,
+  kind: "admin.add" | "admin.update" | "admin.remove",
+  email: string,
+  summary: (label: string) => string,
+  snapshot: MemberSnapshot,
+): Promise<AdminChangeResult> {
+  const label = await accountLabel(email);
+  const entry = await recordAction(
+    {
+      actor: admin.email,
+      kind,
+      targetType: "admin",
+      targetId: email,
+      targetLabel: label,
+      summary: summary(label),
+      undoable: true,
+    },
+    snapshot,
+  );
+  return { entry };
+}
+
+async function addAdminOp(admin: AdminUser, args: Args): Promise<AdminChangeResult> {
+  const email = parseEmail(args.email);
+  const permissions = parsePermissions(args.permissions);
+  if (isOwnerEmail(email)) throw new AdminError("That's the owner account — it already has full access.", 409);
+  if (await getMember(email)) throw new AdminError("They're already an admin — edit their access instead.", 409);
+  if (await isAnySuspended([email])) throw new AdminError("They're suspended — lift their suspension first.", 409);
+
+  const member: AdminMember = {
+    email,
+    permissions,
+    addedAt: new Date().toISOString(),
+    addedBy: admin.email,
+    updatedAt: null,
+  };
+  await saveMember(member);
+  return recordMemberChange(
+    admin,
+    "admin.add",
+    email,
+    (label) => `Made ${label} an admin (${describeAccess(permissions).toLowerCase()})`,
+    { before: null, after: member },
+  );
+}
+
+async function updateAdminOp(admin: AdminUser, args: Args): Promise<AdminChangeResult | { entry: null }> {
+  const email = parseEmail(args.email);
+  const permissions = parsePermissions(args.permissions);
+  if (isOwnerEmail(email)) throw new AdminError("The owner always has full access.");
+  const before = await getMember(email);
+  if (!before) throw new AdminError("They aren't an admin anymore.", 409);
+
+  const granted = permissions.filter((id) => !before.permissions.includes(id));
+  const revoked = before.permissions.filter((id) => !permissions.includes(id));
+  if (granted.length === 0 && revoked.length === 0) return { entry: null };
+
+  const after: AdminMember = { ...before, permissions, updatedAt: new Date().toISOString() };
+  await saveMember(after);
+  const changes = [
+    ...granted.map((id) => `can now ${permissionPhrase(id)}`),
+    ...revoked.map((id) => `can no longer ${permissionPhrase(id)}`),
+  ];
+  return recordMemberChange(
+    admin,
+    "admin.update",
+    email,
+    (label) =>
+      changes.length <= 2
+        ? `Changed ${label}'s access — ${changes.join(", ")}`
+        : `Changed ${label}'s access (now ${describeAccess(permissions).toLowerCase()})`,
+    { before, after },
+  );
+}
+
+async function removeAdminOp(admin: AdminUser, args: Args): Promise<AdminChangeResult> {
+  const email = parseEmail(args.email);
+  if (isOwnerEmail(email)) throw new AdminError("The owner can't be removed.");
+  const before = await getMember(email);
+  if (!before) throw new AdminError("They aren't an admin anymore.", 409);
+  await deleteMember(email);
+  return recordMemberChange(admin, "admin.remove", email, (label) => `Removed ${label} as an admin`, {
+    before,
+    after: null,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -648,6 +794,21 @@ async function applyDirection(entry: AdminLogEntry, snapshot: unknown, direction
       await setRoomCreationSetting(undo ? snap.before : snap.after);
       return;
     }
+    case "admin.add":
+    case "admin.update":
+    case "admin.remove": {
+      const snap = snapshot as MemberSnapshot | null;
+      if (!snap || !("before" in snap)) throw missingSnapshot();
+      if (isOwnerEmail(entry.targetId)) throw new AdminError("That's the owner account now, so its access can't change.");
+      // Rewinding a permission change mustn't bring back someone removed since.
+      if (entry.kind === "admin.update" && !(await getMember(entry.targetId))) {
+        throw new AdminError("They aren't an admin anymore.", 409);
+      }
+      const target = undo ? snap.before : snap.after;
+      if (target) await saveMember(target);
+      else await deleteMember(entry.targetId);
+      return;
+    }
     default:
       throw new AdminError("This change can't be reversed.");
   }
@@ -655,12 +816,18 @@ async function applyDirection(entry: AdminLogEntry, snapshot: unknown, direction
 
 const PEOPLE_KINDS: AdminActionKind[] = ["person.update", "person.suspend", "person.unsuspend"];
 const MEMBERSHIP_KINDS: AdminActionKind[] = ["room.removePerson", "person.leaveAll"];
+// Open pages read these straight from the site state (or never see them at
+// all), so there's nothing for them to refresh.
+const UNSEEN_KINDS: AdminActionKind[] = ["settings.roomCreation", "admin.add", "admin.update", "admin.remove"];
 
 async function reverseOp(admin: AdminUser, args: Args, direction: Direction): Promise<AdminChangeResult> {
   const id = text(args.id, "A change");
   const found = await getAction(id);
   if (!found) throw new AdminError("That change isn't in the log anymore.", 404);
   const { entry, snapshot } = found;
+  // Undoing or redoing a change takes the same permission as making it.
+  const needed: AdminPermission | OwnerOnly = PERMISSION_FOR_KIND[entry.kind] ?? "owner";
+  if (!hasPermission(admin, needed)) throw new AdminError(deniedMessage(needed), 403);
   if (!entry.undoable) throw new AdminError("This change can't be reversed.");
   if (direction === "undo" && entry.status === "undone") throw new AdminError("That's already been undone.", 409);
   if (direction === "redo" && entry.status === "done") throw new AdminError("That's already in effect.", 409);
@@ -670,23 +837,69 @@ async function reverseOp(admin: AdminUser, args: Args, direction: Direction): Pr
 
   if (PEOPLE_KINDS.includes(entry.kind)) await bumpPeopleVersion();
   else if (MEMBERSHIP_KINDS.includes(entry.kind)) await Promise.all([bumpContentVersion(), bumpPeopleVersion()]);
-  else if (entry.kind !== "settings.roomCreation") await bumpContentVersion();
+  else if (!UNSEEN_KINDS.includes(entry.kind)) await bumpContentVersion();
   return { entry: next };
 }
 
 // ---------------------------------------------------------------------------
 
-async function getSnapshot(): Promise<AdminSnapshot> {
-  const [rooms, log, site] = await Promise.all([listAdminRooms(), listActions(300), getSiteState()]);
-  return { rooms, log, site, admins: getAdminEmails(), serverTime: new Date().toISOString() };
+async function getSnapshot(admin: AdminUser): Promise<AdminSnapshot> {
+  const [rooms, log, site, members] = await Promise.all([
+    listAdminRooms(),
+    listActions(300),
+    getSiteState(),
+    listMembers(),
+  ]);
+  return {
+    rooms,
+    log,
+    site,
+    team: { owners: getOwnerEmails(), members },
+    me: { email: admin.email, role: admin.role, permissions: admin.permissions },
+    serverTime: new Date().toISOString(),
+  };
 }
 
+/** What each request needs. Every admin can read everything; undo and redo
+ * are checked against the change itself (in reverseOp). */
+const OP_PERMISSIONS: Record<string, AdminPermission | OwnerOnly | null> = {
+  snapshot: null,
+  "room.get": null,
+  "people.list": null,
+  "person.get": null,
+  "log.undo": null,
+  "log.redo": null,
+  "room.create": "rooms.create",
+  "room.update": "rooms.edit",
+  "room.end": "rooms.edit",
+  "room.trash": "rooms.trash",
+  "room.restore": "rooms.trash",
+  "room.purge": "rooms.delete",
+  "room.removePerson": "rooms.people",
+  "person.leaveAll": "rooms.people",
+  "chat.post": "chat.post",
+  "chat.delete": "chat.moderate",
+  "chat.clear": "chat.moderate",
+  "person.update": "people.edit",
+  "person.suspend": "people.suspend",
+  "settings.roomCreation": "site.roomCreation",
+  "site.refresh": "site.refresh",
+  "admin.add": "owner",
+  "admin.update": "owner",
+  "admin.remove": "owner",
+};
+
 /** Every dashboard request lands here: one of the reads below, or a change
- * — which is logged (so it can be undone) and announced to open pages. */
+ * — which is logged (so it can be undone) and announced to open pages.
+ * Nothing runs unless the admin's permissions cover it. */
 export async function runAdminOp(admin: AdminUser, op: string, args: Args): Promise<unknown> {
+  if (!Object.hasOwn(OP_PERMISSIONS, op)) throw new AdminError("Unknown request.", 400);
+  const needed = OP_PERMISSIONS[op];
+  if (needed && !hasPermission(admin, needed)) throw new AdminError(deniedMessage(needed), 403);
+
   switch (op) {
     case "snapshot":
-      return getSnapshot();
+      return getSnapshot(admin);
     case "room.get":
       return getAdminRoomDetail(text(args.id, "A room id"));
     case "room.create":
@@ -727,6 +940,12 @@ export async function runAdminOp(admin: AdminUser, op: string, args: Args): Prom
       return reverseOp(admin, args, "undo");
     case "log.redo":
       return reverseOp(admin, args, "redo");
+    case "admin.add":
+      return addAdminOp(admin, args);
+    case "admin.update":
+      return updateAdminOp(admin, args);
+    case "admin.remove":
+      return removeAdminOp(admin, args);
     default:
       throw new AdminError("Unknown request.", 400);
   }

@@ -1,12 +1,36 @@
 "use client";
 
 import { signIn } from "next-auth/react";
-import { ShieldIcon } from "./icons";
+import { RefreshIcon, ShieldIcon } from "./icons";
 import { Button, Card } from "./ui";
 
-/** What the dashboard link shows before it knows you're an admin. Only
- * reachable with the link's secret key — without it, it's a plain 404. */
-export default function AdminGate({ state, email }: { state: "signed-out" | "not-admin"; email?: string }) {
+const MESSAGES = {
+  "signed-out": {
+    title: "Waiting Room admin",
+    body: () => "Sign in with your admin Google account to open the dashboard.",
+  },
+  "not-admin": {
+    title: "Waiting Room admin",
+    body: (email?: string) =>
+      `You're signed in as ${email}, which doesn't have admin access. Ask the owner to add this account, or switch accounts.`,
+  },
+  ended: {
+    title: "Your admin access has ended",
+    body: () => "You've been signed out, or the owner has removed this account's admin access.",
+  },
+};
+
+/** What the dashboard link shows before it knows you're an admin (or once
+ * you no longer are). Only reachable with the link's secret key — without
+ * it, it's a plain 404. */
+export default function AdminGate({
+  state,
+  email,
+}: {
+  state: "signed-out" | "not-admin" | "ended";
+  email?: string;
+}) {
+  const message = MESSAGES[state];
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#0a0a0c] p-4 font-inter text-white antialiased">
       <div aria-hidden className="pointer-events-none absolute inset-0">
@@ -17,27 +41,35 @@ export default function AdminGate({ state, email }: { state: "signed-out" | "not
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img alt="" src="/icons/logo.svg" className="h-5 w-auto" />
         </span>
-        <h1 className="mt-5 text-[21px] font-semibold tracking-[-0.02em]">Waiting Room admin</h1>
-        <p className="mx-auto mt-2 max-w-[300px] text-[13.5px] leading-[1.55] text-white/50">
-          {state === "signed-out"
-            ? "Sign in with your admin Google account to open the dashboard."
-            : `You're signed in as ${email}, which doesn't have admin access.`}
-        </p>
-        <Button
-          variant="primary"
-          size="lg"
-          className="mt-6 w-full"
-          icon={<ShieldIcon size={16} />}
-          onClick={() =>
-            signIn(
-              "google",
-              { callbackUrl: window.location.href },
-              state === "not-admin" ? { prompt: "select_account" } : undefined,
-            )
-          }
-        >
-          {state === "signed-out" ? "Continue with Google" : "Use a different account"}
-        </Button>
+        <h1 className="mt-5 text-[21px] font-semibold tracking-[-0.02em]">{message.title}</h1>
+        <p className="mx-auto mt-2 max-w-[300px] text-[13.5px] leading-[1.55] text-white/50">{message.body(email)}</p>
+        {state === "ended" ? (
+          <Button
+            variant="primary"
+            size="lg"
+            className="mt-6 w-full"
+            icon={<RefreshIcon size={16} />}
+            onClick={() => window.location.reload()}
+          >
+            Reload
+          </Button>
+        ) : (
+          <Button
+            variant="primary"
+            size="lg"
+            className="mt-6 w-full"
+            icon={<ShieldIcon size={16} />}
+            onClick={() =>
+              signIn(
+                "google",
+                { callbackUrl: window.location.href },
+                state === "not-admin" ? { prompt: "select_account" } : undefined,
+              )
+            }
+          >
+            {state === "signed-out" ? "Continue with Google" : "Use a different account"}
+          </Button>
+        )}
       </Card>
     </div>
   );

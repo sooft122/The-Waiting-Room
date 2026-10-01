@@ -2,12 +2,28 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { signOut } from "next-auth/react";
-import type { AdminPerson, AdminRoom, AdminSnapshot } from "@/lib/admin/types";
-import { AdminContextProvider, createAdminCall, type AdminTab } from "./AdminContext";
+import {
+  deniedMessage,
+  describeAccess,
+  hasPermission,
+  type AdminAccess,
+  type AdminPermission,
+  type OwnerOnly,
+} from "@/lib/admin/permissions";
+import type { AdminMe, AdminPerson, AdminRoom, AdminSnapshot } from "@/lib/admin/types";
+import AccessDialog from "./AccessDialog";
+import {
+  AdminApiError,
+  AdminContextProvider,
+  createAdminCall,
+  type AccessTarget,
+  type AdminTab,
+} from "./AdminContext";
 import ActivityView from "./ActivityView";
+import AdminGate from "./AdminGate";
 import CommandPalette from "./CommandPalette";
 import { isLive } from "./format";
-import { ExternalIcon, LockIcon, LogOutIcon, SearchIcon } from "./icons";
+import { CrownIcon, ExternalIcon, LockIcon, LogOutIcon, SearchIcon, ShieldIcon } from "./icons";
 import OverviewView from "./OverviewView";
 import PeopleView from "./PeopleView";
 import RoomEditor from "./RoomEditor";
@@ -51,13 +67,17 @@ export default function AdminApp({
   admin,
 }: {
   adminKey: string;
-  admin: { email: string; name: string; image: string | null };
+  admin: AdminAccess & { email: string; name: string; image: string | null };
 }) {
   const call = useMemo(() => createAdminCall(adminKey), [adminKey]);
   const [snapshot, setSnapshot] = useState<AdminSnapshot | null>(null);
   const [people, setPeople] = useState<AdminPerson[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [connection, setConnection] = useState<"live" | "offline">("live");
+  // Signed out, or no longer an admin — checked on every refresh, so someone
+  // the owner removes is shown out within seconds.
+  const [accessEnded, setAccessEnded] = useState(false);
+  const [accessTarget, setAccessTarget] = useState<AccessTarget | null>(null);
   const [tab, setTabState] = useState<AdminTab>("overview");
   const [now, setNow] = useState(() => Date.now());
   const [editorTarget, setEditorTarget] = useState<AdminRoom | "new" | null>(null);
@@ -73,8 +93,13 @@ export default function AdminApp({
     setSnapshot(next);
     setConnection("live");
     setLoadError(null);
+    setAccessEnded(false);
   }, []);
   const snapshotFailed = useCallback((error: unknown) => {
+    if (error instanceof AdminApiError && error.status === 404) {
+      setAccessEnded(true);
+      return;
+    }
     setConnection("offline");
     if (!hasSnapshot.current) setLoadError(error instanceof Error ? error.message : "Couldn't load the dashboard.");
   }, []);
@@ -134,6 +159,21 @@ export default function AdminApp({
   const clearFocus = useCallback(() => setFocus(null), []);
   const openEditor = useCallback((room: AdminRoom | "new") => setEditorTarget(room), []);
   const openPalette = useCallback(() => setPaletteOpen(true), []);
+  const openAccess = useCallback((target: AccessTarget) => setAccessTarget(target), []);
+
+  // Who's using the dashboard, from the latest snapshot once there is one.
+  const latestMe = snapshot?.me;
+  const me = useMemo<AdminMe>(
+    () => latestMe ?? { email: admin.email, role: admin.role, permissions: admin.permissions },
+    [latestMe, admin.email, admin.role, admin.permissions],
+  );
+  const can = useCallback((permission: AdminPermission | OwnerOnly) => hasPermission(me, permission), [me]);
+  const deny = useCallback(
+    (permission: AdminPermission | OwnerOnly) => (hasPermission(me, permission) ? null : deniedMessage(permission)),
+    [me],
+  );
+  const canCreateRooms = useRef(can("rooms.create"));
+  canCreateRooms.current = can("rooms.create");
 
   // ⌘K / Ctrl+K or "/" searches; "n" starts a new room.
   useEffect(() => {
@@ -148,7 +188,7 @@ export default function AdminApp({
       if (event.key === "/") {
         event.preventDefault();
         setPaletteOpen(true);
-      } else if (event.key === "n") {
+      } else if (event.key === "n" && canCreateRooms.current) {
         event.preventDefault();
         setEditorTarget("new");
       }
@@ -180,11 +220,17 @@ export default function AdminApp({
 
   const locked = snapshot?.site.roomCreation.locked ?? false;
 
+  if (accessEnded) return <AdminGate state="ended" />;
+
   return (
     <AdminContextProvider
       value={{
         call,
         admin,
+        me,
+        can,
+        deny,
+        openAccess,
         adminKey,
         snapshot,
         people,
@@ -260,8 +306,28 @@ export default function AdminApp({
               <div className="px-2.5 pb-2 pt-1.5">
                 <p className="truncate text-[13px] font-medium">{admin.name}</p>
                 <p className="truncate text-[12px] text-white/40">{admin.email}</p>
+                <div className="mt-2">
+                  {me.role === "owner" ? (
+                    <Badge tone="amber" icon={<CrownIcon size={12} />}>
+                      Owner
+                    </Badge>
+                  ) : (
+                    <Badge tone="violet" icon={<ShieldIcon size={12} />}>
+                      Admin · {describeAccess(me.permissions)}
+                    </Badge>
+                  )}
+                </div>
               </div>
               <MenuSeparator />
+              <MenuItem
+                icon={<ShieldIcon size={15} />}
+                onSelect={() => {
+                  setMenuOpen(false);
+                  setTab("settings");
+                }}
+              >
+                {me.role === "owner" ? "Manage admins" : "Your access"}
+              </MenuItem>
               <MenuItem
                 icon={<ExternalIcon size={15} />}
                 onSelect={() => {
@@ -368,6 +434,7 @@ export default function AdminApp({
           onCreated={(roomId) => focusOn({ tab: "rooms", roomId })}
         />
         <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
+        <AccessDialog target={accessTarget} onClose={() => setAccessTarget(null)} />
       </div>
     </AdminContextProvider>
   );

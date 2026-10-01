@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
-import { isAdminEmail, isAdminKey } from "@/lib/admin/auth";
+import { getAdminAccess, isAdminKey } from "@/lib/admin/auth";
 import AdminApp from "@/components/admin/AdminApp";
 import AdminGate from "@/components/admin/AdminGate";
 
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
 /**
  * The admin dashboard, at /admin/<ADMIN_DASHBOARD_KEY>. The wrong key is an
  * ordinary 404, so the page gives nothing away; the right key still needs a
- * Google sign-in with an account listed in ADMIN_EMAILS.
+ * Google sign-in as the owner (ADMIN_EMAILS) or an admin they've added.
  */
 export default async function AdminPage({ params }: { params: { key: string } }) {
   if (!isAdminKey(params.key)) notFound();
@@ -26,12 +26,13 @@ export default async function AdminPage({ params }: { params: { key: string } })
   const session = await getServerSession(authOptions);
   const email = session?.user?.email;
   if (!email) return <AdminGate state="signed-out" />;
-  if (!isAdminEmail(email)) return <AdminGate state="not-admin" email={email} />;
+  const access = await getAdminAccess(email);
+  if (!access) return <AdminGate state="not-admin" email={email} />;
 
   return (
     <AdminApp
       adminKey={params.key}
-      admin={{ email, name: session.user?.name ?? email, image: session.user?.image ?? null }}
+      admin={{ email, name: session.user?.name ?? email, image: session.user?.image ?? null, ...access }}
     />
   );
 }

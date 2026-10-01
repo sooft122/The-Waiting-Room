@@ -16,6 +16,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { initialsOf, tintFor } from "./format";
+import { LockIcon } from "./icons";
 
 export function cx(...classes: (string | false | null | undefined)[]): string {
   return classes.filter(Boolean).join(" ");
@@ -97,10 +98,27 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   size?: ButtonSize;
   icon?: ReactNode;
   loading?: boolean;
+  /** Why this admin can't use it. The button shows a lock and does nothing,
+   * and the reason is its tooltip (so it still has to take the pointer,
+   * unlike a disabled one). */
+  locked?: string | null | false;
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { variant = "secondary", size = "md", icon, loading, className, children, disabled, type = "button", ...props },
+  {
+    variant = "secondary",
+    size = "md",
+    icon,
+    loading,
+    locked,
+    className,
+    children,
+    disabled,
+    type = "button",
+    onClick,
+    title,
+    ...props
+  },
   ref,
 ) {
   return (
@@ -108,15 +126,19 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       ref={ref}
       type={type}
       disabled={disabled || loading}
+      aria-disabled={locked ? true : undefined}
+      title={locked || title}
+      onClick={locked ? (event) => event.preventDefault() : onClick}
       className={cx(
-        "inline-flex shrink-0 select-none items-center justify-center whitespace-nowrap font-medium outline-none transition-[background,color,box-shadow,transform,opacity] duration-150 focus-visible:ring-2 focus-visible:ring-[#8fb2ff]/50 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-45",
+        "inline-flex shrink-0 select-none items-center justify-center whitespace-nowrap font-medium outline-none transition-[background,color,box-shadow,transform,opacity] duration-150 focus-visible:ring-2 focus-visible:ring-[#8fb2ff]/50 disabled:pointer-events-none disabled:opacity-45",
+        locked ? "cursor-not-allowed opacity-45" : "active:scale-[0.98]",
         BUTTON_VARIANTS[variant],
         BUTTON_SIZES[size],
         className,
       )}
       {...props}
     >
-      {loading ? <Spinner size={14} /> : icon}
+      {loading ? <Spinner size={14} /> : locked ? <LockIcon size={size === "lg" ? 15 : 13} /> : icon}
       {children}
     </button>
   );
@@ -281,6 +303,7 @@ export function Segmented<T extends string>({
   fullWidth,
   className,
   ariaLabel,
+  locked,
 }: {
   value: T;
   onChange: (value: T) => void;
@@ -289,6 +312,8 @@ export function Segmented<T extends string>({
   fullWidth?: boolean;
   className?: string;
   ariaLabel?: string;
+  /** Why this admin can't change it — it stays put, with this as the tooltip. */
+  locked?: string | null | false;
 }) {
   const trackRef = useRef<HTMLDivElement>(null);
   const buttonRefs = useRef(new Map<string, HTMLButtonElement>());
@@ -324,9 +349,12 @@ export function Segmented<T extends string>({
       ref={trackRef}
       role="tablist"
       aria-label={ariaLabel}
+      aria-disabled={locked ? true : undefined}
+      title={locked || undefined}
       className={cx(
         "relative flex rounded-[13px] bg-black/30 p-[3px] shadow-[inset_0_1px_2px_rgba(0,0,0,0.35)] ring-1 ring-inset ring-white/[0.05]",
         fullWidth ? "w-full" : "w-fit max-w-full overflow-x-auto [scrollbar-width:none]",
+        locked && "cursor-not-allowed opacity-50",
         className,
       )}
     >
@@ -352,12 +380,13 @@ export function Segmented<T extends string>({
             type="button"
             role="tab"
             aria-selected={active}
-            onClick={() => onChange(option.value)}
+            onClick={locked ? undefined : () => onChange(option.value)}
             className={cx(
               "relative z-10 flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-[10px] px-3 font-medium outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-[#8fb2ff]/40",
               heights[size],
               fullWidth && "flex-1",
-              active ? "text-white" : "text-white/50 hover:text-white/80",
+              locked && "cursor-not-allowed",
+              active ? "text-white" : locked ? "text-white/50" : "text-white/50 hover:text-white/80",
             )}
           >
             {option.icon}
@@ -408,6 +437,37 @@ export function Switch({
         )}
       />
     </button>
+  );
+}
+
+/** The box of a checkbox. Draw it inside the row that toggles it, so the
+ * whole row is the click target. */
+export function CheckMark({ state }: { state: "on" | "off" | "mixed" }) {
+  return (
+    <span
+      aria-hidden
+      className={cx(
+        "flex size-[18px] shrink-0 items-center justify-center rounded-[6px] transition-[background,box-shadow,color] duration-150",
+        state === "off"
+          ? "bg-white/[0.04] text-transparent shadow-[inset_0_0_0_1.5px_rgba(255,255,255,0.2)]"
+          : "bg-[#ececef] text-[#16161a] shadow-[0_1px_2px_rgba(0,0,0,0.45)]",
+      )}
+    >
+      {state === "mixed" ? (
+        <span className="h-[2px] w-2 rounded-full bg-current" />
+      ) : (
+        <svg width="12" height="12" viewBox="0 0 24 24" aria-hidden>
+          <path
+            d="m5 12.5 4.5 4.5L19 7.5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      )}
+    </span>
   );
 }
 
@@ -610,6 +670,7 @@ export function MenuItem({
   tone = "default",
   disabled,
   hint,
+  locked,
 }: {
   icon?: ReactNode;
   children: ReactNode;
@@ -617,23 +678,39 @@ export function MenuItem({
   tone?: "default" | "danger";
   disabled?: boolean;
   hint?: ReactNode;
+  /** Why this admin can't use it — shown with a lock, as the tooltip. */
+  locked?: string | null | false;
 }) {
   return (
     <button
       type="button"
       role="menuitem"
       disabled={disabled}
-      onClick={onSelect}
+      aria-disabled={locked ? true : undefined}
+      title={locked || undefined}
+      onClick={locked ? undefined : onSelect}
       className={cx(
         "flex w-full items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-left text-[13px] outline-none transition-colors disabled:pointer-events-none disabled:opacity-40",
-        tone === "danger"
-          ? "text-[#ff8a8e] hover:bg-[#ff5a5f]/10 focus-visible:bg-[#ff5a5f]/10"
-          : "text-white/85 hover:bg-white/[0.07] focus-visible:bg-white/[0.07]",
+        locked
+          ? "cursor-not-allowed text-white/35"
+          : tone === "danger"
+            ? "text-[#ff8a8e] hover:bg-[#ff5a5f]/10 focus-visible:bg-[#ff5a5f]/10"
+            : "text-white/85 hover:bg-white/[0.07] focus-visible:bg-white/[0.07]",
       )}
     >
-      {icon ? <span className={cx("shrink-0", tone === "danger" ? "text-[#ff8a8e]" : "text-white/45")}>{icon}</span> : null}
+      {icon ? (
+        <span className={cx("shrink-0", locked ? "text-white/25" : tone === "danger" ? "text-[#ff8a8e]" : "text-white/45")}>
+          {icon}
+        </span>
+      ) : null}
       <span className="flex-1">{children}</span>
-      {hint ? <span className="text-[11.5px] text-white/35">{hint}</span> : null}
+      {locked ? (
+        <span className="text-white/30">
+          <LockIcon size={13} />
+        </span>
+      ) : hint ? (
+        <span className="text-[11.5px] text-white/35">{hint}</span>
+      ) : null}
     </button>
   );
 }

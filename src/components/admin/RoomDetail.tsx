@@ -6,7 +6,7 @@ import { getCountryName } from "@/lib/countries";
 import { useAdmin } from "./AdminContext";
 import Flag from "./Flag";
 import { MOOD_EMOJI, formatDateTime, formatSpan, plural, timeAgo } from "./format";
-import { MessageIcon, SendIcon, TrashIcon, UsersIcon, XIcon } from "./icons";
+import { LockIcon, MessageIcon, SendIcon, TrashIcon, UsersIcon, XIcon } from "./icons";
 import { Avatar, Badge, Button, EmptyState, IconButton, Segmented, Skeleton, cx } from "./ui";
 import { useLatest } from "./useLatest";
 
@@ -17,7 +17,7 @@ type Pane = "people" | "chat" | "insights";
 /** The expanded view of one room: who's in it, its chat, and its mood and
  * countries — kept live while open. */
 export default function RoomDetail({ roomId, initialPane = "people" }: { roomId: string; initialPane?: Pane }) {
-  const { call, change, confirm, changeCount, focusOn, now } = useAdmin();
+  const { call, change, confirm, changeCount, focusOn, now, snapshot, me, can } = useAdmin();
   const [detail, setDetail] = useState<AdminRoomDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pane, setPane] = useState<Pane>(initialPane);
@@ -58,6 +58,13 @@ export default function RoomDetail({ roomId, initialPane = "people" }: { roomId:
   }
 
   const { room, participants, messages } = detail;
+  // Taking an admin out of a room is the owner's call (the API agrees).
+  const canRemove = (identity: string) => {
+    if (!can("rooms.people")) return false;
+    if (me.role === "owner" || identity.toLowerCase() === me.email.toLowerCase()) return true;
+    const key = identity.toLowerCase();
+    return !snapshot?.team.owners.includes(key) && !snapshot?.team.members.some((member) => member.email === key);
+  };
 
   return (
     <div className="animate-admin-rise flex flex-col gap-4 px-4 pb-5 pt-1 sm:px-5">
@@ -114,7 +121,7 @@ export default function RoomDetail({ roomId, initialPane = "people" }: { roomId:
                   {person.messageCount > 0 ? <span>{plural(person.messageCount, "message")}</span> : null}
                   {person.lastCheckIn ? <span title={formatDateTime(person.lastCheckIn)}>seen {timeAgo(person.lastCheckIn, now)}</span> : null}
                 </div>
-                {person.isHost ? (
+                {person.isHost || !canRemove(person.identity) ? (
                   <span className="w-8" />
                 ) : (
                   <IconButton
@@ -214,7 +221,7 @@ function ChatPane({
   messages: AdminMessage[];
   trashed: boolean;
 }) {
-  const { change, confirm, focusOn, now } = useAdmin();
+  const { change, confirm, focusOn, now, can, deny } = useAdmin();
   const [draft, setDraft] = useState("");
   const [posting, setPosting] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
@@ -273,15 +280,17 @@ function ChatPane({
                 </div>
                 <p className="whitespace-pre-wrap break-words text-[13px] leading-[1.5] text-white/75">{message.text}</p>
               </div>
-              <IconButton
-                label="Delete message"
-                tone="danger"
-                size="sm"
-                className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
-                onClick={() => change("chat.delete", { roomId, messageId: message.id })}
-              >
-                <TrashIcon size={14} />
-              </IconButton>
+              {can("chat.moderate") ? (
+                <IconButton
+                  label="Delete message"
+                  tone="danger"
+                  size="sm"
+                  className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+                  onClick={() => change("chat.delete", { roomId, messageId: message.id })}
+                >
+                  <TrashIcon size={14} />
+                </IconButton>
+              ) : null}
             </div>
           ))}
         </div>
@@ -289,6 +298,11 @@ function ChatPane({
 
       {trashed ? (
         <p className="text-[12.5px] text-white/40">Restore the room to post in its chat.</p>
+      ) : !can("chat.post") ? (
+        <p className="flex items-center gap-2 text-[12.5px] text-white/40">
+          <LockIcon size={13} />
+          {deny("chat.post")}
+        </p>
       ) : (
         <form
           className="flex items-center gap-2"
@@ -316,6 +330,7 @@ function ChatPane({
             size="sm"
             variant="dangerGhost"
             icon={<TrashIcon size={14} />}
+            locked={deny("chat.moderate")}
             onClick={async () => {
               const ok = await confirm({
                 title: "Clear the whole chat?",

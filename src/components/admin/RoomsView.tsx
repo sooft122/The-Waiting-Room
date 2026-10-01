@@ -83,7 +83,7 @@ export function RoomThumb({ room, size = 40 }: { room: AdminRoom; size?: number 
 }
 
 export default function RoomsView() {
-  const { snapshot, now, openEditor, focus, clearFocus } = useAdmin();
+  const { snapshot, now, openEditor, focus, clearFocus, deny } = useAdmin();
   const [scope, setScope] = useState<Scope>("all");
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
@@ -199,7 +199,12 @@ export default function RoomsView() {
               </span>
             ) : null}
           </Button>
-          <Button variant="primary" icon={<PlusIcon size={15} />} onClick={() => openEditor("new")}>
+          <Button
+            variant="primary"
+            icon={<PlusIcon size={15} />}
+            locked={deny("rooms.create")}
+            onClick={() => openEditor("new")}
+          >
             New room
           </Button>
         </div>
@@ -383,7 +388,7 @@ function RoomRow({
 }
 
 export function RoomActions({ room, status }: { room: AdminRoom; status: RoomStatus }) {
-  const { openEditor, change, confirm, notify } = useAdmin();
+  const { openEditor, change, confirm, notify, deny } = useAdmin();
   const link = typeof window !== "undefined" ? `${window.location.origin}/rooms/${room.id}` : `/rooms/${room.id}`;
 
   return (
@@ -393,6 +398,7 @@ export function RoomActions({ room, status }: { room: AdminRoom; status: RoomSta
           <>
             <MenuItem
               icon={<RestoreIcon size={15} />}
+              locked={deny("rooms.trash")}
               onSelect={() => {
                 close();
                 void change("room.restore", { id: room.id });
@@ -404,6 +410,7 @@ export function RoomActions({ room, status }: { room: AdminRoom; status: RoomSta
             <MenuItem
               tone="danger"
               icon={<XIcon size={15} />}
+              locked={deny("rooms.delete")}
               onSelect={async () => {
                 close();
                 const ok = await confirm({
@@ -422,6 +429,7 @@ export function RoomActions({ room, status }: { room: AdminRoom; status: RoomSta
           <>
             <MenuItem
               icon={<PencilIcon size={15} />}
+              locked={deny("rooms.edit")}
               onSelect={() => {
                 close();
                 openEditor(room);
@@ -432,6 +440,7 @@ export function RoomActions({ room, status }: { room: AdminRoom; status: RoomSta
             {status === "active" || status === "soon" ? (
               <MenuItem
                 icon={<FlagEndIcon size={15} />}
+                locked={deny("rooms.edit")}
                 onSelect={async () => {
                   close();
                   const ok = await confirm({
@@ -472,6 +481,7 @@ export function RoomActions({ room, status }: { room: AdminRoom; status: RoomSta
             <MenuItem
               tone="danger"
               icon={<TrashIcon size={15} />}
+              locked={deny("rooms.trash")}
               onSelect={() => {
                 close();
                 void change("room.trash", { id: room.id });

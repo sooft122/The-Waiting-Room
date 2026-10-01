@@ -3,14 +3,16 @@
 import { useEffect, useState } from "react";
 import { MAX_LOCK_MESSAGE_LENGTH, ROOM_CREATION_LOCKED_MESSAGE, SITE_STATE_POLL_MS } from "@/lib/siteStateShared";
 import { useAdmin } from "./AdminContext";
+import { AdminsCard, YourAccessCard } from "./AdminsCard";
 import { plural } from "./format";
-import { CopyIcon, LinkIcon, LockIcon, RefreshIcon, ShieldIcon, TrashIcon, UnlockIcon } from "./icons";
+import { CopyIcon, LinkIcon, LockIcon, RefreshIcon, TrashIcon, UnlockIcon } from "./icons";
 import { Button, Card, CardHeader, Segmented, TextArea } from "./ui";
 
 /** Open / Locked for room creation, plus the message people see while it's locked. */
 export function RoomCreationCard() {
-  const { snapshot, change } = useAdmin();
+  const { snapshot, change, can, deny } = useAdmin();
   const setting = snapshot?.site.roomCreation;
+  const lockedReason = deny("site.roomCreation");
   const [pending, setPending] = useState<boolean | null>(null);
   const [message, setMessage] = useState(setting?.message ?? "");
   const [savingMessage, setSavingMessage] = useState(false);
@@ -24,13 +26,14 @@ export function RoomCreationCard() {
     <Card className="p-5 sm:p-6">
       <CardHeader
         title="Room creation"
-        subtitle="Choose whether people can create new rooms. You can always create them from here."
+        subtitle={`Choose whether people can create new rooms.${can("rooms.create") ? " You can always create them from here." : ""}`}
       />
       <Segmented
         size="lg"
         fullWidth
         className="mt-5"
         ariaLabel="Room creation"
+        locked={lockedReason}
         value={locked ? "locked" : "open"}
         onChange={async (value) => {
           const next = value === "locked";
@@ -58,6 +61,8 @@ export function RoomCreationCard() {
           <TextArea
             id="lock-message"
             value={message}
+            disabled={!!lockedReason}
+            title={lockedReason ?? undefined}
             maxLength={MAX_LOCK_MESSAGE_LENGTH}
             onChange={(event) => setMessage(event.target.value)}
             placeholder={ROOM_CREATION_LOCKED_MESSAGE}
@@ -71,6 +76,7 @@ export function RoomCreationCard() {
               size="sm"
               variant="primary"
               disabled={!messageChanged}
+              locked={lockedReason}
               loading={savingMessage}
               onClick={async () => {
                 setSavingMessage(true);
@@ -88,12 +94,13 @@ export function RoomCreationCard() {
 }
 
 export function RefreshEveryoneButton({ size = "md" }: { size?: "sm" | "md" }) {
-  const { change, confirm } = useAdmin();
+  const { change, confirm, deny } = useAdmin();
   const [busy, setBusy] = useState(false);
   return (
     <Button
       size={size}
       icon={<RefreshIcon size={15} />}
+      locked={deny("site.refresh")}
       loading={busy}
       onClick={async () => {
         const ok = await confirm({
@@ -113,7 +120,7 @@ export function RefreshEveryoneButton({ size = "md" }: { size?: "sm" | "md" }) {
 }
 
 export default function SettingsView() {
-  const { snapshot, adminKey, change, confirm, notify } = useAdmin();
+  const { snapshot, adminKey, change, confirm, notify, me, deny } = useAdmin();
   const [emptying, setEmptying] = useState(false);
   const trashed = (snapshot?.rooms ?? []).filter((room) => room.trashedAt);
   const dashboardUrl = typeof window !== "undefined" ? `${window.location.origin}/admin/${adminKey}` : "";
@@ -136,10 +143,23 @@ export default function SettingsView() {
         </div>
       </Card>
 
+      {me.role === "owner" ? (
+        <AdminsCard className="lg:col-span-2" />
+      ) : (
+        <>
+          <YourAccessCard />
+          <AdminsCard />
+        </>
+      )}
+
       <Card className="p-5 sm:p-6">
         <CardHeader
-          title="Your dashboard link"
-          subtitle="Keep it to yourself. Even with the link, it only opens for the admin Google accounts below — everyone else gets a plain “page not found”."
+          title="Dashboard link"
+          subtitle={
+            me.role === "owner"
+              ? "Share it only with your admins. Even with the link, it opens only for the accounts above — anyone else gets a plain “page not found”."
+              : "Keep it to yourself. Even with the link, it opens only for the accounts listed — anyone else gets a plain “page not found”."
+          }
         />
         <div className="mt-5 flex items-center gap-2 rounded-[13px] border border-white/[0.07] bg-black/25 p-1.5 pl-3">
           <span className="shrink-0 text-white/35">
@@ -165,27 +185,6 @@ export default function SettingsView() {
 
       <Card className="p-5 sm:p-6">
         <CardHeader
-          title="Admin accounts"
-          subtitle="Signed in as one of these, the link above opens this dashboard."
-        />
-        <div className="mt-5 flex flex-col gap-2">
-          {(snapshot?.admins ?? []).map((email) => (
-            <div key={email} className="flex items-center gap-2.5 rounded-[12px] bg-white/[0.03] px-3 py-2.5 text-[13px]">
-              <span className="text-[#c4b5fd]">
-                <ShieldIcon size={15} />
-              </span>
-              <span className="truncate">{email}</span>
-            </div>
-          ))}
-        </div>
-        <p className="mt-3 text-[12.5px] leading-[1.5] text-white/40">
-          To add or remove one, change <span className="font-mono text-white/60">ADMIN_EMAILS</span> in Vercel → Settings →
-          Environment Variables, then redeploy.
-        </p>
-      </Card>
-
-      <Card className="p-5 sm:p-6 lg:col-span-2">
-        <CardHeader
           title="Trash"
           subtitle={
             trashed.length === 0
@@ -197,6 +196,7 @@ export default function SettingsView() {
               variant="dangerGhost"
               icon={<TrashIcon size={15} />}
               disabled={trashed.length === 0}
+              locked={trashed.length > 0 && deny("rooms.delete")}
               loading={emptying}
               onClick={async () => {
                 const ok = await confirm({

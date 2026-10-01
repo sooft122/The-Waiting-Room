@@ -4,6 +4,7 @@
 
 import type { RoomCategory } from "@/lib/rooms";
 import type { SiteState } from "@/lib/siteStateShared";
+import type { AdminPermission, AdminRole } from "./permissions";
 
 export type PersonKind = "google" | "anonymous" | "system";
 
@@ -117,14 +118,17 @@ export type AdminActionKind =
   | "person.unsuspend"
   | "person.leaveAll"
   | "settings.roomCreation"
-  | "site.refresh";
+  | "site.refresh"
+  | "admin.add"
+  | "admin.update"
+  | "admin.remove";
 
 export type AdminLogEntry = {
   id: string;
   at: string;
   actor: string;
   kind: AdminActionKind;
-  targetType: "room" | "person" | "settings" | "site";
+  targetType: "room" | "person" | "settings" | "site" | "admin";
   targetId: string;
   targetLabel: string;
   summary: string;
@@ -134,11 +138,31 @@ export type AdminLogEntry = {
   changedAt: string | null;
 };
 
+/** Someone the owner has made an admin, and what they're allowed to do. */
+export type AdminMember = {
+  /** Their Google account, lowercased. */
+  email: string;
+  permissions: AdminPermission[];
+  addedAt: string;
+  addedBy: string;
+  /** When the owner last changed their permissions. */
+  updatedAt: string | null;
+};
+
+/** Everyone who can open the dashboard: the owner (ADMIN_EMAILS) and the
+ * admins they've added. */
+export type AdminTeam = { owners: string[]; members: AdminMember[] };
+
+/** The admin using the dashboard. It comes with every snapshot, so a change
+ * to their access shows up on their screen within seconds. */
+export type AdminMe = { email: string; role: AdminRole; permissions: AdminPermission[] };
+
 export type AdminSnapshot = {
   rooms: AdminRoom[];
   log: AdminLogEntry[];
   site: SiteState;
-  admins: string[];
+  team: AdminTeam;
+  me: AdminMe;
   serverTime: string;
 };
 
